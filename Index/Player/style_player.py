@@ -1,0 +1,88 @@
+import pygame
+
+class PlayerStyle:
+    def __init__(self):
+        self.color = (0, 0, 0)  # Default color (black)
+        self.width = 50         # Default width
+        self.height = 50        # Default height
+        # Añadimos animaciones para idle, run, jump y attack
+        self.animations = {
+            "idle": [
+                [ "XX  XX",
+                  " XXXX ",
+                  "  XX  ",
+                  "XXXXXX",
+                  " XXXX ",
+                  "  XX  " ]
+            ],
+            "run": [
+                [ "XX  XX",
+                  " XXXX ",
+                  "  XX  ",
+                  "XXXXX ",
+                  " XXXX ",
+                  "  XX  " ],
+                [ " XX XX",
+                  "XXXXXX",
+                  "  XX  ",
+                  " XXXXX",
+                  " XXXX ",
+                  "  XX  " ]
+            ],
+            "jump": [  # Animación simple para saltar
+                [ "  XX  ",
+                  " XXXX ",
+                  "  XX  ",
+                  "  XX  " ]
+            ],
+            "attack": [  # Animación simple para atacar
+                [ " AAA ",
+                  "AAAAA",
+                  " AAA ",
+                  "  A  " ],
+                [ "  A  ",
+                  "AAAAA",
+                  " AAA ",
+                  " AAA " ]
+            ]
+        }
+        self.current_animation = "idle"
+        self.current_frame = 0
+        self.animation_speed = 0.15  # segundos por frame
+        self.time_since_last_frame = 0
+
+    def update_animation(self, dt, moving=False, jumping=False, attacking=False):
+        """
+        Actualiza el frame de la animación:
+        - Si attacking es True se usa "attack".
+        - Si no y jumping es True se usa "jump".
+        - Si no, si moving es True se usa "run", sino "idle".
+        """
+        if attacking:
+            self.current_animation = "attack"
+        elif jumping:
+            self.current_animation = "jump"
+        else:
+            self.current_animation = "run" if moving else "idle"
+
+        frames = self.animations[self.current_animation]
+        if len(frames) > 1:
+            self.time_since_last_frame += dt
+            if self.time_since_last_frame >= self.animation_speed:
+                self.current_frame = (self.current_frame + 1) % len(frames)
+                self.time_since_last_frame = 0
+        else:
+            self.current_frame = 0
+
+    def draw_pixel_art(self, screen, x, y):
+        """Dibuja el frame actual de la animación en pixel art"""
+        frames = self.animations[self.current_animation]
+        frame = frames[self.current_frame]
+        for row_index, row in enumerate(frame):
+            for col_index, pixel in enumerate(row):
+                if pixel in ('X', 'A'):
+                    pygame.draw.rect(screen, self.color, (x + col_index * 10, y + row_index * 10, 10, 10))
+
+    def draw(self, screen, x, y):
+        """Dibuja el player usando la animación en pixel art"""
+        self.draw_pixel_art(screen, x, y)
