@@ -50,6 +50,10 @@ class Enemy:
         self.move_towards_player(player)
         self.attack(player)
 
+        # Hacer que el enemigo salte aleatoriamente cuando está en el suelo
+        if not self.is_jumping and random.random() < 0.05:  # 1% de probabilidad de saltar cada frame
+            self.jump()
+
         # Aplicar gravedad
         self.velocity_y += self.gravity
         self.y += self.velocity_y
