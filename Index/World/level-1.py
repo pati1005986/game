@@ -74,7 +74,7 @@ while running:
     player.update()
 
     # Update enemy
-    enemy.update(player)
+    enemy.update(player, platforms)
 
     # Check for collisions with platforms
     player_rect = pygame.Rect(player.x, screen.get_height() - player.y - player.style.height, 
