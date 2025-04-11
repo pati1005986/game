@@ -2,48 +2,56 @@ import pygame
 
 class EnemyStyle:
     def __init__(self):
-        self.color = (255, 0, 0)  # Color rojo para el enemigo
-        self.width = 50           # Ancho por defecto
-        self.height = 50          # Alto por defecto
-        # Añadir animaciones para idle, run, jump y attack
+        self.color = (200, 0, 0)  # Rojo más oscuro para el enemigo
+        self.width = 60           # Ancho aumentado
+        self.height = 60          # Alto aumentado
         self.animations = {
             "idle": [
-                [ "XX  XX",
-                  " XXXX ",
-                  "  XX  ",
-                  "XXXXXX",
-                  " XXXX ",
-                  "  XX  " ]
+                [ "  XXXX  ",
+                  " XXXXXX ",
+                  "XXXXXXXX",
+                  "XX XX XX",
+                  "XXXXXXXX",
+                  " XXXXXX ",
+                  "  XXXX  " ]
             ],
             "run": [
-                [ "XX  XX",
-                  " XXXX ",
-                  "  XX  ",
-                  "XXXXX ",
-                  " XXXX ",
-                  "  XX  " ],
-                [ " XX XX",
-                  "XXXXXX",
-                  "  XX  ",
-                  " XXXXX",
-                  " XXXX ",
-                  "  XX  " ]
+                [ " XXXX   ",
+                  "XXXXXX  ",
+                  "XXXXXXX ",
+                  "XX XX XX",
+                  "XXXXXXX ",
+                  " XXXXX  ",
+                  "  XXX   " ],
+                [ "   XXXX ",
+                  "  XXXXXX",
+                  " XXXXXXX",
+                  "XX XX XX",
+                  " XXXXXXX",
+                  "  XXXXX ",
+                  "   XXX  " ]
             ],
-            "jump": [  # Animación simple para saltar
-                [ "  XX  ",
-                  " XXXX ",
-                  "  XX  ",
-                  "  XX  " ]
+            "jump": [
+                [ "   XX   ",
+                  "  XXXX  ",
+                  " XXXXXX ",
+                  "XXXXXXXX",
+                  " XX  XX ",
+                  "  XXXX  " ]
             ],
-            "attack": [  # Animación simple para atacar
-                [ " AAA ",
-                  "AAAAA",
-                  " AAA ",
-                  "  A  " ],
-                [ "  A  ",
-                  "AAAAA",
-                  " AAA ",
-                  " AAA " ]
+            "attack": [
+                [ " AXXXA  ",
+                  "AXXXXXA ",
+                  "XXXXXXXX",
+                  "XXXXXXXX",
+                  "AXXXXXA ",
+                  " AXXXA  " ],
+                [ "  AXXA  ",
+                  " AXXXA  ",
+                  "XXXXXXXX",
+                  "XXXXXXXX",
+                  " AXXXA  ",
+                  "  AXXA  " ]
             ]
         }
         self.current_animation = "idle"

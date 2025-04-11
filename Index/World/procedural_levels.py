@@ -1,40 +1,42 @@
 import random
 import pygame
 
-def generate_platforms(level, screen_width, screen_height):
-    """
-    Genera una lista de plataformas evitando superposiciones.
-    Usa el rectángulo de colisión definido en la clase Platform.
-    """
-    platforms = []
-    num_platforms = 5 + level  # Aumenta la cantidad según el nivel
-    platform_width = 200
-    platform_height = 5 
-    margin = 50  # Margen respecto a la pantalla
-    max_attempts = num_platforms * 10  # Limitar intentos
-    attempts = 0
-
-    while len(platforms) < num_platforms and attempts < max_attempts:
-        x = random.randint(margin, screen_width - platform_width - margin)
-        y = random.randint(screen_height // 2, screen_height - margin)
-        new_rect = pygame.Rect(x, y - Platform.collision_margin, platform_width, platform_height + 2 * Platform.collision_margin)
-        
-        overlap = any(new_rect.colliderect(p.rect) for p in platforms)
-        if not overlap:
-            platforms.append(Platform(x, y, platform_width, platform_height))
-        attempts += 1
-
-    return platforms
-
 class Platform:
-    collision_margin = 10  # Margen extra para colisiones, extendido arriba y abajo
+    collision_margin = 10
 
     def __init__(self, x, y, width, height):
-        # self.rect extiende la zona de colisión igual en la parte superior e inferior
-        self.rect = pygame.Rect(x, y - Platform.collision_margin, width, height + 2 * Platform.collision_margin)
-        # La parte visual se basa en la posición original (y y height)
+        self.rect = pygame.Rect(x, y, width, height)
         self.visual_rect = pygame.Rect(x, y, width, height)
 
     def draw(self, screen):
-        # Dibuja la plataforma visualmente
         pygame.draw.rect(screen, (0, 0, 0), self.visual_rect)
+
+    def get_spawn_position(self):
+        """Returns a valid spawn position above this platform"""
+        return self.rect.x + self.rect.width // 2, self.rect.top - Platform.collision_margin
+
+def generate_platforms(level, screen_width, screen_height):
+    platforms = []
+    num_platforms = 5 + level
+    platform_width = 200
+    platform_height = 20
+    margin = 50
+    vertical_spacing = (screen_height - 200) // (num_platforms - 1)
+
+    # First platform for player spawn (higher up)
+    platforms.append(Platform(margin, screen_height - 150, platform_width, platform_height))
+
+    # Second platform for enemy spawn (on the other side)
+    platforms.append(Platform(screen_width - margin - platform_width, screen_height - 150, platform_width, platform_height))
+
+    # Generate remaining platforms with better vertical distribution
+    for i in range(num_platforms - 2):
+        y = screen_height - 150 - (i + 1) * vertical_spacing
+        x = random.randint(margin, screen_width - platform_width - margin)
+        new_platform = Platform(x, y, platform_width, platform_height)
+        
+        # Check for overlaps
+        if not any(new_platform.rect.colliderect(p.rect) for p in platforms):
+            platforms.append(new_platform)
+
+    return platforms

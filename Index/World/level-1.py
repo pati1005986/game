@@ -31,14 +31,15 @@ clock = pygame.time.Clock()
 # Variables de nivel
 current_level = 1
 
-# Create player instance (set position inicial)
-player = Player(x=100, y=0)
-
-# Crear instancia del enemigo
-enemy = Enemy(x=500, y=0)
-
-# Inicializar plataformas proceduralmente
+# Initialize platforms first
 platforms = generate_platforms(current_level, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+# Create player and enemy instances and position them above their starting platforms
+player_x, player_y = platforms[0].get_spawn_position()
+enemy_x, enemy_y = platforms[1].get_spawn_position()
+
+player = Player(x=player_x, y=player_y)
+enemy = Enemy(x=enemy_x, y=enemy_y)
 
 def show_game_over(screen):
     """Mostrar pantalla de Game Over"""
@@ -51,16 +52,17 @@ def show_game_over(screen):
 # Main game loop
 running = True
 while running:
+    dt = clock.tick(60) / 1000.0  # Convert to seconds
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-    dt = clock.tick(60) / 1000  # delta time en segundos
+    # Handle key presses and animations
     keys = pygame.key.get_pressed()
     moving = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
     player.style.update_animation(dt, moving, player.is_jumping, player.is_attacking)
     
-    # Handle key presses
     if keys[pygame.K_LEFT]:
         player.move_left()
     if keys[pygame.K_RIGHT]:
@@ -70,34 +72,19 @@ while running:
     if keys[pygame.K_a]:
         player.attack()
 
-    # Update player
-    player.update()
-
-    # Update enemy
-    enemy.update(player, platforms)
-
-    # Check for collisions with platforms
-    player_rect = pygame.Rect(player.x, screen.get_height() - player.y - player.style.height, 
-                              player.style.width, player.style.height)
-    on_ground = False
-    for platform in platforms:
-        if player_rect.colliderect(platform.rect) and player.velocity_y > 0:
-            # Ajustar la posición del jugador usando visual_rect para que se alinee correctamente en la parte superior
-            player.y = screen.get_height() - platform.visual_rect.top - player.style.height
-            player.velocity_y = 0
-            player.is_jumping = False
-            on_ground = True
-            break
-
-    if not on_ground and player.y < SCREEN_HEIGHT - player.style.height:
-        player.is_jumping = True
+    # Update entities
+    player.update(dt, platforms)
+    enemy.update(player, platforms, dt)
 
     # Detectar si el jugador cae fuera de la pantalla (parte posterior)
     if player.y > SCREEN_HEIGHT:
         current_level += 1  # Incrementar el nivel
         platforms = generate_platforms(current_level, SCREEN_WIDTH, SCREEN_HEIGHT)
-        # Reiniciar posición del jugador
-        player.x, player.y = 100, 0
+        # Reiniciar posición del jugador y enemigo
+        player_x, player_y = platforms[0].get_spawn_position()
+        enemy_x, enemy_y = platforms[1].get_spawn_position()
+        player.x, player.y = player_x, player_y
+        enemy.x, enemy.y = enemy_x, enemy_y
 
     # Clear the screen con fondo de gradiente definido en los estilos
     draw_gradient_background(screen)

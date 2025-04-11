@@ -3,24 +3,23 @@ from Index.Player.style_player import PlayerStyle
 
 class Player:
     def __init__(self, x=0, y=0):
-        self.x = x  # X position
-        self.y = y  # Y position
-        self.velocity_x = 5  # Horizontal movement speed
-        self.velocity_y = 0  # Vertical movement speed
+        self.x = x
+        self.y = y
+        self.base_velocity = 300  # Units per second
+        self.velocity_x = 0
+        self.velocity_y = 0
         self.is_jumping = False
         self.is_attacking = False
-        self.gravity = 1
-        self.jump_power = -15
-        self.style = PlayerStyle()  # Initialize player style
-        self.health = 100  # Health of the player
+        self.gravity = 980  # Pixels per second squared
+        self.jump_power = 500
+        self.style = PlayerStyle()
+        self.health = 100
 
     def move_left(self):
-        """Move player to the left"""
-        self.x -= self.velocity_x
+        self.velocity_x = -self.base_velocity
 
     def move_right(self):
-        """Move player to the right"""
-        self.x += self.velocity_x
+        self.velocity_x = self.base_velocity
 
     def jump(self):
         """Make player jump if not already jumping"""
@@ -33,21 +32,27 @@ class Player:
         self.is_attacking = True
         # Attack duration could be handled in update method
 
-    def update(self):
+    def update(self, dt, platforms=None):
         """Update player state and position"""
         # Apply gravity
-        self.velocity_y += self.gravity
-        self.y += self.velocity_y
+        self.velocity_y -= self.gravity * dt
         
-        # Eliminar o ajustar esta condición para que no reinicie siempre el salto:
-        # if self.y >= 0:
-        #     self.y = 0
-        #     self.velocity_y = 0
-        #     self.is_jumping = False
-            
+        # Update position
+        self.x += self.velocity_x * dt
+        self.y += self.velocity_y * dt
+        
+        # Handle platform collisions
+        if platforms:
+            player_rect = pygame.Rect(self.x, self.y, self.style.width, self.style.height)
+            for platform in platforms:
+                if player_rect.colliderect(platform.rect) and self.velocity_y < 0:
+                    self.y = platform.rect.top
+                    self.velocity_y = 0
+                    self.is_jumping = False
+                    break
+
         # Reset attack after duration
         if self.is_attacking:
-            # Attack duration logic here
             self.is_attacking = False
 
     def take_damage(self, amount):

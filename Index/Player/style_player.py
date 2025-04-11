@@ -17,8 +17,8 @@ class PlayerStyle:
         }
         
         self.pixel_size = pixel_size
-        self.width = 50
-        self.height = 50
+        self.width = 60
+        self.height = 60
         
         # Sistema de animaciones mejorado
         self.animations = self._load_animations()
@@ -40,42 +40,54 @@ class PlayerStyle:
         """Carga y devuelve las definiciones de animaciones"""
         return {
             "idle": [
-                ["XX  XX",
-                 " XXXX ",
-                 "  XX  ",
-                 "XXXXXX",
-                 " XXXX ",
-                 "  XX  "]
+                [ "  XXXX  ",
+                  " XXXXXX ",
+                  "XXXXXXXX",
+                  "XX XX XX",
+                  "XXXXXXXX",
+                  " XX  XX ",
+                  "XXX  XXX" ]
             ],
             "run": [
-                ["XX  XX",
-                 " XXXX ",
-                 "  XX  ",
-                 "XXXXX ",
-                 " XXXX ",
-                 "  XX  "],
-                [" XX XX",
-                 "XXXXXX",
-                 "  XX  ",
-                 " XXXXX",
-                 " XXXX ",
-                 "  XX  "]
+                [ "  XXXX  ",
+                  " XXXXXX ",
+                  "XXXXXXXX",
+                  "XX XX XX",
+                  "XXXXXXX ",
+                  " XX XX  ",
+                  "XXX  XX " ],
+                [ "  XXXX  ",
+                  " XXXXXX ",
+                  "XXXXXXXX",
+                  "XX XX XX",
+                  " XXXXXXX",
+                  "  XX XX ",
+                  " XX  XXX" ]
             ],
             "jump": [
-                ["  XX  ",
-                 " XXXX ",
-                 "  XX  ",
-                 "  XX  "]
+                [ "  XXXX  ",
+                  "XXXXXXXX",
+                  "XX XX XX",
+                  " XXXXXX ",
+                  "  XXXX  ",
+                  " XX  XX ",
+                  "XXX  XXX" ]
             ],
             "attack": [
-                [" AAA ",
-                 "AAAAA",
-                 " AAA ",
-                 "  A  "],
-                ["  A  ",
-                 "AAAAA",
-                 " AAA ",
-                 " AAA "]
+                [ "   AA   ",
+                  "  AAAA  ",
+                  " AXXXXA ",
+                  "AXXXXXXA",
+                  " AXXXXA ",
+                  "  AAAA  ",
+                  "   AA   " ],
+                [ "  AAAA  ",
+                  " AAAAAA ",
+                  "AAXXXXAA",
+                  "XXXXXXXX",
+                  "AAXXXXAA",
+                  " AAAAAA ",
+                  "  AAAA  " ]
             ]
         }
 

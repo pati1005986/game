@@ -1,5 +1,6 @@
 import pygame
 import time
+import random  # Importar el módulo random
 from Index.Enemies.style_enemie import EnemyStyle
 
 class Enemy:
@@ -8,24 +9,26 @@ class Enemy:
         self.y = y
         self.width = 50
         self.height = 50
-        self.velocity_x = 2  # Velocidad de movimiento horizontal
-        self.velocity_y = 0  # Velocidad de movimiento vertical
-        self.gravity = 1
+        self.base_velocity = 200  # Units per second
+        self.velocity_x = 0
+        self.velocity_y = 0
+        self.gravity = 980
         self.is_jumping = False
-        self.jump_power = -10
-        self.attack_range = 10  # Rango de ataque
+        self.jump_power = 500
+        self.attack_range = 50
         self.is_attacking = False
-        self.damage = 10  # Daño infligido al jugador
-        self.style = EnemyStyle()  # Inicializar estilo del enemigo
-        self.attack_cooldown = 1.0  # Tiempo de recarga entre ataques en segundos
-        self.last_attack_time = 0  # Tiempo del último ataque
+        self.damage = 10
+        self.style = EnemyStyle()
+        self.attack_cooldown = 1.0
+        self.last_attack_time = 0
 
-    def move_towards_player(self, player):
-        """Moverse hacia el jugador"""
+    def move_towards_player(self, player, dt):
         if self.x < player.x:
-            self.x += self.velocity_x
+            self.velocity_x = self.base_velocity
         elif self.x > player.x:
-            self.x -= self.velocity_x
+            self.velocity_x = -self.base_velocity
+        else:
+            self.velocity_x = 0
 
     def jump(self):
         """Hacer que el enemigo salte"""
@@ -45,35 +48,37 @@ class Enemy:
         else:
             self.is_attacking = False
 
-    def update(self, player, platforms):
-        """Actualizar estado y posición del enemigo"""
-        self.move_towards_player(player)
+    def update(self, player, platforms, dt):
+        self.move_towards_player(player, dt)
         self.attack(player)
 
-        # Hacer que el enemigo salte aleatoriamente cuando está en el suelo
-        if not self.is_jumping and random.random() < 0.05:  # 1% de probabilidad de saltar cada frame
-            self.jump()
+        # Apply gravity
+        self.velocity_y -= self.gravity * dt
+        
+        # Update position
+        self.x += self.velocity_x * dt
+        self.y += self.velocity_y * dt
 
-        # Aplicar gravedad
-        self.velocity_y += self.gravity
-        self.y += self.velocity_y
-
-        # Check for collisions with platforms
+        # Handle platform collisions
         enemy_rect = pygame.Rect(self.x, self.y, self.width, self.height)
         on_ground = False
         for platform in platforms:
-            if enemy_rect.colliderect(platform.rect) and self.velocity_y > 0:
-                self.y = platform.rect.top - self.height
+            if enemy_rect.colliderect(platform.rect) and self.velocity_y < 0:
+                self.y = platform.rect.top
                 self.velocity_y = 0
                 self.is_jumping = False
                 on_ground = True
                 break
 
-        if not on_ground and self.y < 0:
-            self.is_jumping = True
+        # Random jumping when on ground
+        if on_ground and not self.is_jumping and random.random() < 0.01:
+            self.jump()
+
+        # Reset horizontal velocity
+        self.velocity_x = 0
 
         # Actualizar animación
-        self.style.update_animation(0, moving=True, jumping=self.is_jumping, attacking=self.is_attacking)
+        self.style.update_animation(dt, moving=abs(self.velocity_x) > 0, jumping=self.is_jumping, attacking=self.is_attacking)
 
     def draw(self, screen):
         """Dibujar al enemigo en la pantalla"""
