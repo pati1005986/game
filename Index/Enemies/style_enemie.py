@@ -2,9 +2,14 @@ import pygame
 
 class EnemyStyle:
     def __init__(self):
-        self.color = (200, 0, 0)  # Rojo más oscuro para el enemigo
-        self.width = 60           # Ancho aumentado
-        self.height = 60          # Alto aumentado
+        self.color = (200, 0, 0)  # Red for enemy
+        self.width = 60
+        self.height = 60
+        self.pixel_size = 10
+        self.current_animation = "idle"
+        self.current_frame = 0
+        self.animation_speed = 0.15
+        self.time_since_last_frame = 0
         self.animations = {
             "idle": [
                 [ "  XXXX  ",
@@ -54,10 +59,6 @@ class EnemyStyle:
                   "  AXXA  " ]
             ]
         }
-        self.current_animation = "idle"
-        self.current_frame = 0
-        self.animation_speed = 0.15  # segundos por frame
-        self.time_since_last_frame = 0
 
     def update_animation(self, dt, moving=False, jumping=False, attacking=False):
         """

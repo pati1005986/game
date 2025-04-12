@@ -2,18 +2,16 @@ import random
 import pygame
 
 class Platform:
-    collision_margin = 10
-
     def __init__(self, x, y, width, height):
         self.rect = pygame.Rect(x, y, width, height)
         self.visual_rect = pygame.Rect(x, y, width, height)
 
-    def draw(self, screen):
-        pygame.draw.rect(screen, (0, 0, 0), self.visual_rect)
-
     def get_spawn_position(self):
         """Returns a valid spawn position above this platform"""
-        return self.rect.x + self.rect.width // 2, self.rect.top - Platform.collision_margin
+        return self.rect.x + self.rect.width // 2, self.rect.y + 50
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, (0, 0, 0), self.visual_rect)
 
 def generate_platforms(level, screen_width, screen_height):
     platforms = []
