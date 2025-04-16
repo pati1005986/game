@@ -4,9 +4,9 @@ from typing import Dict, List, Tuple
 class PlayerStyle:
     def __init__(
         self,
-        base_color: Tuple[int, int, int] = (0, 0, 0),
-        accent_color: Tuple[int, int, int] = (255, 0, 0),
-        pixel_size: int = 10,
+        base_color: Tuple[int, int, int] = (0, 128, 255),  # Azul más vibrante
+        accent_color: Tuple[int, int, int] = (255, 215, 0),  # Dorado para efectos
+        pixel_size: int = 8,  # Pixel size más pequeño para más detalle
         animation_speeds: Dict[str, float] = None
     ):
         # Configuración de colores y tamaños
@@ -37,57 +37,69 @@ class PlayerStyle:
         self.parsed_frames_cache = {}  # Cache de frames renderizados
 
     def _load_animations(self) -> Dict[str, List[List[str]]]:
-        """Carga y devuelve las definiciones de animaciones"""
+        """Carga y devuelve las definiciones de animaciones mejoradas"""
         return {
             "idle": [
-                [ "  XXXX  ",
-                  " XXXXXX ",
-                  "XXXXXXXX",
-                  "XX XX XX",
-                  "XXXXXXXX",
-                  " XX  XX ",
-                  "XXX  XXX" ]
+                [ "   XXXX   ",
+                  "  XXXXXX  ",
+                  " XXXXXXXX ",
+                  "XXXXXXXXXX",
+                  "XX XXXX XX",
+                  "XXXXXXXXXX",
+                  " XX XX XX ",
+                  " XXX  XXX ",
+                  "XXXX  XXXX" ]
             ],
             "run": [
-                [ "  XXXX  ",
-                  " XXXXXX ",
-                  "XXXXXXXX",
-                  "XX XX XX",
-                  "XXXXXXX ",
-                  " XX XX  ",
-                  "XXX  XX " ],
-                [ "  XXXX  ",
-                  " XXXXXX ",
-                  "XXXXXXXX",
-                  "XX XX XX",
-                  " XXXXXXX",
-                  "  XX XX ",
-                  " XX  XXX" ]
+                [ "   XXXX   ",
+                  "  XXXXXX  ",
+                  " XXXXXXXX ",
+                  "XXXXXXXXXX",
+                  "XX XXXX XX",
+                  "XXXXXXXXXX",
+                  " XX XX    ",
+                  "XXXX XX   ",
+                  " XXX  XX  " ],
+                [ "   XXXX   ",
+                  "  XXXXXX  ",
+                  " XXXXXXXX ",
+                  "XXXXXXXXXX",
+                  "XX XXXX XX",
+                  "XXXXXXXXXX",
+                  "    XX XX ",
+                  "   XX XXXX",
+                  "  XX  XXX " ]
             ],
             "jump": [
-                [ "  XXXX  ",
-                  "XXXXXXXX",
-                  "XX XX XX",
-                  " XXXXXX ",
-                  "  XXXX  ",
-                  " XX  XX ",
-                  "XXX  XXX" ]
+                [ "   XXXX   ",
+                  " XXXXXXXX ",
+                  "XXXXXXXXXX",
+                  "XX XXXX XX",
+                  " XXXXXXXX ",
+                  "  XXXXXX  ",
+                  " XXX  XXX ",
+                  "XXXX  XXXX",
+                  " XXX  XXX " ]
             ],
             "attack": [
-                [ "   AA   ",
-                  "  AAAA  ",
-                  " AXXXXA ",
-                  "AXXXXXXA",
-                  " AXXXXA ",
-                  "  AAAA  ",
-                  "   AA   " ],
-                [ "  AAAA  ",
-                  " AAAAAA ",
-                  "AAXXXXAA",
-                  "XXXXXXXX",
-                  "AAXXXXAA",
-                  " AAAAAA ",
-                  "  AAAA  " ]
+                [ "    AAAA    ",
+                  "   AAAAAA   ",
+                  "  AAAAAAAA  ",
+                  " AXXXXXXXXA ",
+                  "AXXXXXXXXXA",
+                  " AXXXXXXXXA ",
+                  "  AAAAAAAA  ",
+                  "   AAAAAA   ",
+                  "    AAAA    " ],
+                [ "   AAAA   ",
+                  "  AAAAAA  ",
+                  " AAAAAAAA ",
+                  "AXXXXXXXXA",
+                  "AXXXXXXXXA",
+                  "AXXXXXXXXA",
+                  " AAAAAAAA ",
+                  "  AAAAAA  ",
+                  "   AAAA   " ]
             ]
         }
 

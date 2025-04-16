@@ -47,56 +47,71 @@ class ColorTransition:
 class AuroraColorTransition:
     def __init__(self):
         self.start_time = time.time()
-        # Nuevos colores más vibrantes para el fondo
+        # Paleta de colores más vibrante y armoniosa
         self.colors = [
-            (41, 128, 185),   # Azul océano
-            (142, 68, 173),   # Púrpura místico
-            (52, 152, 219),   # Azul cielo
-            (155, 89, 182),   # Violeta suave
-            (26, 188, 156),   # Turquesa
-            (46, 204, 113)    # Esmeralda
+            (25, 25, 112),    # Azul medianoche
+            (72, 61, 139),    # Púrpura oscuro
+            (106, 90, 205),   # Púrpura azulado
+            (123, 104, 238),  # Púrpura medio
+            (147, 112, 219),  # Violeta medio
+            (138, 43, 226)    # Violeta azulado
         ]
-        self.transition_speed = 0.5  # Velocidad de transición
-        
-        # Añadir efectos de partículas
+        self.transition_speed = 0.3
         self.particles = []
-        self.max_particles = 50
+        self.stars = []  # Nuevas estrellas para el fondo
+        self.max_particles = 70  # Más partículas
+        self.max_stars = 100
         self.init_particles()
+        self.init_stars()
+
+    def init_stars(self):
+        """Inicializar estrellas en el fondo"""
+        for _ in range(self.max_stars):
+            self.stars.append({
+                'x': random.randint(0, 800),
+                'y': random.randint(0, 450),
+                'size': random.randint(1, 3),
+                'twinkle_speed': random.uniform(1.0, 3.0),
+                'offset': random.uniform(0, 6.28)  # 2*pi para fase aleatoria
+            })
 
     def init_particles(self):
-        """Inicializar partículas decorativas"""
+        """Inicializar partículas con más variedad"""
         for _ in range(self.max_particles):
             self.particles.append({
                 'x': random.randint(0, 800),
-                'y': random.randint(0, 600),
-                'speed': random.uniform(0.5, 2),
-                'size': random.randint(2, 5),
-                'alpha': random.randint(50, 200)
+                'y': random.randint(0, 450),
+                'speed': random.uniform(0.2, 1.5),
+                'size': random.randint(2, 6),
+                'alpha': random.randint(30, 180),
+                'color_shift': random.uniform(0, 1)
             })
 
     def update_particles(self, dt):
-        """Actualizar posición de partículas"""
+        """Actualizar partículas con movimiento más suave"""
+        current_time = time.time()
         for p in self.particles:
+            # Movimiento ondulatorio
+            p['x'] += math.sin(current_time * p['speed']) * 0.5
             p['y'] -= p['speed']
             if p['y'] < -10:
-                p['y'] = 610
+                p['y'] = 460
                 p['x'] = random.randint(0, 800)
 
     def get_color(self, y, height):
-        """Mejorar la generación de colores con más variación"""
+        """Color generation con más variación y suavidad"""
         progress = (time.time() * self.transition_speed) % len(self.colors)
         idx = int(progress)
         next_idx = (idx + 1) % len(self.colors)
         
-        # Añadir variación de color basada en la posición Y
         y_factor = y / height
-        blend = (math.sin(progress - idx + y_factor) + 1) / 2
+        blend = (math.sin(progress - idx + y_factor * 2) + 1) / 2
         
         color1 = self.colors[idx]
         color2 = self.colors[next_idx]
         
-        # Añadir efecto de ondulación
-        wave = math.sin(y * 0.02 + time.time()) * 0.1
+        # Añadir ondulación más pronunciada
+        wave = math.sin(y * 0.03 + time.time() * 0.5) * 0.15
         blend = max(0, min(1, blend + wave))
         
         return (
@@ -110,29 +125,38 @@ def draw_gradient_background(screen):
     width, height = screen.get_size()
     aurora = AuroraColorTransition()
     
-    # Dibujar gradiente base
+    # Fondo base negro
+    screen.fill((5, 5, 15))
+    
+    # Dibujar estrellas
+    current_time = time.time()
+    for star in aurora.stars:
+        # Efecto de parpadeo
+        brightness = (math.sin(current_time * star['twinkle_speed'] + star['offset']) + 1) / 2
+        alpha = int(100 + brightness * 155)
+        color = (255, 255, 255, alpha)
+        
+        s = pygame.Surface((star['size'], star['size']), pygame.SRCALPHA)
+        pygame.draw.circle(s, color, (star['size']//2, star['size']//2), star['size']//2)
+        screen.blit(s, (star['x'], star['y']))
+    
+    # Dibujar aurora (gradiente)
     for y in range(height):
         color = aurora.get_color(y, height)
-        pygame.draw.line(screen, color, (0, y), (width, y))
+        s = pygame.Surface((width, 1), pygame.SRCALPHA)
+        s.fill((*color, 100))  # Menos opaco para ver las estrellas
+        screen.blit(s, (0, y))
     
     # Actualizar y dibujar partículas
-    aurora.update_particles(1/60)  # Asumiendo 60 FPS
+    aurora.update_particles(1/60)
     for p in aurora.particles:
-        color = aurora.get_color(p['y'], height)
-        s = pygame.Surface((p['size'], p['size']))
-        s.fill(color)
-        s.set_alpha(p['alpha'])
-        screen.blit(s, (p['x'], p['y']))
-    
-    # Añadir efecto de destello
-    current_time = time.time()
-    for i in range(3):
-        flash_pos = (
-            width/2 + math.sin(current_time * 0.5 + i*2.1) * width/3,
-            height/2 + math.cos(current_time * 0.3 + i*1.7) * height/3
+        color = aurora.get_color(int(p['y']), height)
+        # Ajustar color con el color_shift individual
+        adjusted_color = (
+            min(255, int(color[0] * (1 + p['color_shift'] * 0.5))),
+            min(255, int(color[1] * (1 + p['color_shift'] * 0.5))),
+            min(255, int(color[2] * (1 + p['color_shift'] * 0.5)))
         )
-        radius = (math.sin(current_time + i) + 1) * 50 + 20
-        s = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
-        pygame.draw.circle(s, (*aurora.get_color(int(flash_pos[1]), height), 30), 
-                         (radius, radius), radius)
-        screen.blit(s, (flash_pos[0]-radius, flash_pos[1]-radius))
+        s = pygame.Surface((p['size'], p['size']), pygame.SRCALPHA)
+        s.fill((*adjusted_color, p['alpha']))
+        screen.blit(s, (p['x'], p['y']))

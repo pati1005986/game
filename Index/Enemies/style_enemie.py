@@ -2,61 +2,80 @@ import pygame
 
 class EnemyStyle:
     def __init__(self):
-        self.color = (200, 0, 0)  # Red for enemy
+        self.colors = {
+            'X': (220, 20, 60),  # Rojo carmesí
+            'A': (255, 69, 0),   # Rojo-naranja para efectos
+            ' ': None  # Transparente
+        }
         self.width = 60
         self.height = 60
-        self.pixel_size = 10
+        self.pixel_size = 8
         self.current_animation = "idle"
         self.current_frame = 0
         self.animation_speed = 0.15
         self.time_since_last_frame = 0
         self.animations = {
             "idle": [
-                [ "  XXXX  ",
-                  " XXXXXX ",
-                  "XXXXXXXX",
-                  "XX XX XX",
-                  "XXXXXXXX",
-                  " XXXXXX ",
-                  "  XXXX  " ]
+                [ "   XXXX   ",
+                  "  XXXXXX  ",
+                  " XXXXXXXX ",
+                  "XXX XX XXX",
+                  "XXXXXXXXXX",
+                  "XXXXXXXXXX",
+                  " XXXXXXXX ",
+                  "  XX  XX  ",
+                  " XXX  XXX " ]
             ],
             "run": [
-                [ " XXXX   ",
-                  "XXXXXX  ",
-                  "XXXXXXX ",
-                  "XX XX XX",
-                  "XXXXXXX ",
-                  " XXXXX  ",
-                  "  XXX   " ],
-                [ "   XXXX ",
-                  "  XXXXXX",
-                  " XXXXXXX",
-                  "XX XX XX",
-                  " XXXXXXX",
-                  "  XXXXX ",
-                  "   XXX  " ]
+                [ "   XXXX   ",
+                  "  XXXXXX  ",
+                  " XXXXXXXX ",
+                  "XXX XX XXX",
+                  "XXXXXXXXXX",
+                  "XXXXXXXXXX",
+                  "  XXXXXX  ",
+                  " XXX  XX  ",
+                  "XXX    X  " ],
+                [ "   XXXX   ",
+                  "  XXXXXX  ",
+                  " XXXXXXXX ",
+                  "XXX XX XXX",
+                  "XXXXXXXXXX",
+                  "XXXXXXXXXX",
+                  "  XXXXXX  ",
+                  "  XX  XXX ",
+                  "  X    XXX" ]
             ],
             "jump": [
-                [ "   XX   ",
-                  "  XXXX  ",
-                  " XXXXXX ",
-                  "XXXXXXXX",
-                  " XX  XX ",
-                  "  XXXX  " ]
+                [ "   XXXX   ",
+                  " XXXXXXXX ",
+                  "XXXXXXXXXX",
+                  "XXX XX XXX",
+                  " XXXXXXXX ",
+                  "  XXXXXX  ",
+                  " XXXXXXXX ",
+                  "XX      XX",
+                  " XXX  XXX " ]
             ],
             "attack": [
-                [ " AXXXA  ",
-                  "AXXXXXA ",
-                  "XXXXXXXX",
-                  "XXXXXXXX",
-                  "AXXXXXA ",
-                  " AXXXA  " ],
-                [ "  AXXA  ",
-                  " AXXXA  ",
-                  "XXXXXXXX",
-                  "XXXXXXXX",
-                  " AXXXA  ",
-                  "  AXXA  " ]
+                [ "    AAAA   ",
+                  "   AAAAAA  ",
+                  "  AAAAAAAA ",
+                  " AXXXXXXXA ",
+                  "AXXXXXXXXXA",
+                  " AXXXXXXXA ",
+                  "  AAAAAAAA ",
+                  "   AAAAAA  ",
+                  "    AAAA   " ],
+                [ "   AAAA    ",
+                  "  AAAAAA   ",
+                  " AAAAAAAA  ",
+                  " AXXXXXXXA ",
+                  "AXXXXXXXXXA",
+                  " AXXXXXXXA ",
+                  " AAAAAAAA  ",
+                  "  AAAAAA   ",
+                  "   AAAA    " ]
             ]
         }
 
@@ -84,13 +103,17 @@ class EnemyStyle:
             self.current_frame = 0
 
     def draw_pixel_art(self, screen, x, y):
-        """Dibuja el frame actual de la animación en pixel art"""
+        """Dibuja el frame actual de la animación en pixel art con colores específicos"""
         frames = self.animations[self.current_animation]
         frame = frames[self.current_frame]
         for row_index, row in enumerate(frame):
             for col_index, pixel in enumerate(row):
-                if pixel in ('X', 'A'):
-                    pygame.draw.rect(screen, self.color, (x + col_index * 10, y + row_index * 10, 10, 10))
+                if pixel in self.colors and self.colors[pixel]:
+                    color = self.colors[pixel]
+                    pygame.draw.rect(screen, color, 
+                                  (x + col_index * self.pixel_size, 
+                                   y + row_index * self.pixel_size, 
+                                   self.pixel_size, self.pixel_size))
 
     def draw(self, screen, x, y):
         """Dibuja el enemigo usando la animación en pixel art"""

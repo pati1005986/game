@@ -18,13 +18,24 @@ class Enemy:
         self.gravity = 980
         self.jump_power = 500
         self.is_jumping = False
-        self.attack_range = 50
+        self.attack_range = 60
         self.is_attacking = False
         self.damage = 10
         self.style = EnemyStyle()
-        self.attack_cooldown = 1.0
+        self.attack_cooldown = 1.5
         self.last_attack_time = 0
         self.on_ground = False
+        self.state = 'patrol'  # New state machine
+        self.patrol_direction = 1
+        self.patrol_timer = 0
+        self.patrol_duration = 2.0
+        self.aggro_range = 300
+        self.health = 100
+        self.max_health = 100
+        self.knockback_resistance = 0.5
+        self.invulnerable = False
+        self.invulnerable_timer = 0
+        self.invulnerable_duration = 0.5
 
     def move_towards_player(self, player, dt):
         """Move towards player with smooth acceleration"""
@@ -37,9 +48,9 @@ class Enemy:
         self.velocity_x = max(min(self.velocity_x, self.max_velocity), -self.max_velocity)
 
     def jump(self):
-        """Make enemy jump if on ground"""
+        """Make enemy jump if on ground using screen coordinates"""
         if not self.is_jumping and self.on_ground:
-            self.velocity_y = self.jump_power
+            self.velocity_y = -self.jump_power  # Negativo para saltar hacia arriba
             self.is_jumping = True
             self.on_ground = False
 
@@ -56,7 +67,7 @@ class Enemy:
             self.is_attacking = False
 
     def check_platform_collision(self, platforms):
-        """Check and handle collisions with platforms"""
+        """Check and handle collisions with platforms using screen coordinates"""
         enemy_rect = pygame.Rect(
             self.x,
             self.y,
@@ -66,15 +77,15 @@ class Enemy:
         
         for platform in platforms:
             if enemy_rect.colliderect(platform.rect):
-                if self.velocity_y <= 0:
-                    if self.y + self.height <= platform.rect.top + abs(self.velocity_y):
-                        self.y = platform.rect.top - self.height
+                if self.velocity_y >= 0:  # Cayendo (velocidad positiva en coordenadas de pantalla)
+                    if self.y <= platform.rect.top:
+                        self.y = platform.rect.top
                         self.velocity_y = 0
                         self.is_jumping = False
                         self.on_ground = True
                         return True
 
-        if self.velocity_y < 0:
+        if self.velocity_y > 0:
             self.on_ground = False
         return False
 
@@ -92,39 +103,100 @@ class Enemy:
                 return True
         return False
 
-    def update(self, player, platforms, dt):
-        """Update enemy state and position"""
-        self.move_towards_player(player, dt)
+    def patrol(self, dt):
+        """Basic patrol behavior"""
+        self.patrol_timer += dt
+        if self.patrol_timer >= self.patrol_duration:
+            self.patrol_direction *= -1
+            self.patrol_timer = 0
         
-        # Aplicar gravedad solo si no está en el suelo
+        self.velocity_x = self.patrol_direction * self.max_velocity * 0.5
+
+    def chase_player(self, player, dt):
+        """Enhanced chase behavior with jumping"""
+        distance = player.x - self.x
+        direction = 1 if distance > 0 else -1
+        
+        self.velocity_x += self.acceleration * direction * dt
+        self.velocity_x = max(min(self.velocity_x, self.max_velocity), -self.max_velocity)
+        
+        # Jump if player is higher and we're on ground
+        if self.on_ground and player.y > self.y + 50:
+            self.jump()
+
+    def update(self, player, platforms, dt):
+        """Enhanced update with correct coordinate system"""
+        # Update timers
+        if self.invulnerable:
+            self.invulnerable_timer -= dt
+            if self.invulnerable_timer <= 0:
+                self.invulnerable = False
+
+        # Calculate distance to player
+        distance_to_player = abs(player.x - self.x)
+        
+        # State machine
+        if distance_to_player <= self.attack_range:
+            self.state = 'attack'
+        elif distance_to_player <= self.aggro_range:
+            self.state = 'chase'
+        else:
+            self.state = 'patrol'
+            
+        # Execute current state
+        if self.state == 'patrol':
+            self.patrol(dt)
+        elif self.state == 'chase':
+            self.chase_player(player, dt)
+        elif self.state == 'attack':
+            self.attack(player)
+            
+        # Apply gravity
         if not self.on_ground:
-            self.velocity_y -= self.gravity * dt
-
-        # Actualizar posición
+            self.velocity_y += self.gravity * dt  # Gravedad positiva para coordenadas de pantalla
+            
+        # Update position
         self.x += self.velocity_x * dt
-        old_y = self.y
         self.y += self.velocity_y * dt
-
-        # Verificar colisiones
+        
+        # Mantener al enemigo dentro de los límites verticales
+        screen_height = 450  # Usar la misma altura que el jugador
+        if self.y > screen_height - self.height:  # Límite inferior
+            self.y = screen_height - self.height
+            self.velocity_y = 0
+            self.on_ground = True
+        elif self.y < 0:  # Límite superior
+            self.y = 0
+            self.velocity_y = 0
+        
+        # Check collisions
         self.check_platform_collision(platforms)
-
+        
         # Apply friction
         self.velocity_x *= self.friction
         if abs(self.velocity_x) < 1:
             self.velocity_x = 0
-
-        # Random jumping when near player and on ground
-        if self.on_ground and abs(self.x - player.x) < 200 and random.random() < 0.02:
-            self.jump()
-
-        # Attack check
-        self.attack(player)
-
+            
         # Update animation
-        self.style.update_animation(dt, moving=abs(self.velocity_x) > 0.1, 
+        moving = abs(self.velocity_x) > 0.1
+        self.style.update_animation(dt, moving=moving, 
                                   jumping=self.is_jumping, 
                                   attacking=self.is_attacking)
 
+    def take_damage(self, amount, knockback_x=0, knockback_y=0):
+        """Enhanced damage handling with correct knockback direction"""
+        if not self.invulnerable:
+            self.health -= amount
+            if self.health < 0:
+                self.health = 0
+            
+            # Apply knockback with resistance and correct direction
+            self.velocity_x = max(min(knockback_x * (1 - self.knockback_resistance), 300), -300)
+            self.velocity_y = -200  # Knockback hacia arriba (negativo en coordenadas de pantalla)
+            
+            self.invulnerable = True
+            self.invulnerable_timer = self.invulnerable_duration
+
     def draw(self, screen):
-        """Dibujar al enemigo en la pantalla"""
-        self.style.draw(screen, self.x, screen.get_height() - self.y)
+        """Dibujar al enemigo en la pantalla con coordenadas correctas"""
+        self.style.draw(screen, self.x, self.y)
