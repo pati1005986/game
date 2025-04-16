@@ -2,80 +2,90 @@ import pygame
 
 class EnemyStyle:
     def __init__(self):
+        # Paleta de colores NES
         self.colors = {
-            'X': (220, 20, 60),  # Rojo carmesí
-            'A': (255, 69, 0),   # Rojo-naranja para efectos
-            ' ': None  # Transparente
+            'X': (201, 0, 0),      # Rojo NES
+            'D': (146, 0, 0),      # Rojo oscuro
+            'E': (255, 200, 200),  # Rojo claro para ojos
+            'B': (0, 0, 0),        # Negro para detalles
+            ' ': None              # Transparente
         }
-        self.width = 60
-        self.height = 60
+        self.width = 32
+        self.height = 32
         self.pixel_size = 8
         self.current_animation = "idle"
         self.current_frame = 0
-        self.animation_speed = 0.15
+        self.animation_speeds = {
+            'idle': 0.4,
+            'run': 0.15,
+            'jump': 0.2,
+            'attack': 0.1
+        }
         self.time_since_last_frame = 0
         self.animations = {
             "idle": [
                 [ "   XXXX   ",
                   "  XXXXXX  ",
+                  " XEXXXXEX ",
+                  " XBBXXBBX ",
                   " XXXXXXXX ",
-                  "XXX XX XXX",
-                  "XXXXXXXXXX",
-                  "XXXXXXXXXX",
+                  "  DDDDDD  ",
+                  " XX XX XX ",
+                  "XXX    XXX" ],
+                [ "   XXXX   ",
+                  "  XXXXXX  ",
+                  " XEXXXXEX ",
+                  " XBBXXBBX ",
                   " XXXXXXXX ",
-                  "  XX  XX  ",
-                  " XXX  XXX " ]
+                  "  DDDDDD  ",
+                  " XXXXXXXX ",
+                  " XX DD XX " ]
             ],
             "run": [
                 [ "   XXXX   ",
                   "  XXXXXX  ",
+                  " XEXXXXEX ",
+                  " XBBXXBBX ",
                   " XXXXXXXX ",
-                  "XXX XX XXX",
-                  "XXXXXXXXXX",
-                  "XXXXXXXXXX",
-                  "  XXXXXX  ",
-                  " XXX  XX  ",
-                  "XXX    X  " ],
+                  "  DDDDDD  ",
+                  " XX  XX   ",
+                  "XXX   XX  " ],
                 [ "   XXXX   ",
                   "  XXXXXX  ",
+                  " XEXXXXEX ",
+                  " XBBXXBBX ",
                   " XXXXXXXX ",
-                  "XXX XX XXX",
-                  "XXXXXXXXXX",
-                  "XXXXXXXXXX",
-                  "  XXXXXX  ",
-                  "  XX  XXX ",
-                  "  X    XXX" ]
+                  "  DDDDDD  ",
+                  "   XX  XX ",
+                  "  XX   XXX" ]
             ],
             "jump": [
                 [ "   XXXX   ",
-                  " XXXXXXXX ",
-                  "XXXXXXXXXX",
-                  "XXX XX XXX",
-                  " XXXXXXXX ",
                   "  XXXXXX  ",
+                  " XEXXXXEX ",
+                  " XBBXXBBX ",
                   " XXXXXXXX ",
-                  "XX      XX",
-                  " XXX  XXX " ]
+                  "  DDDDDD  ",
+                  " XXXXXXXX ",
+                  "XX    XXX" ]
             ],
             "attack": [
-                [ "    AAAA   ",
-                  "   AAAAAA  ",
-                  "  AAAAAAAA ",
-                  " AXXXXXXXA ",
-                  "AXXXXXXXXXA",
-                  " AXXXXXXXA ",
-                  "  AAAAAAAA ",
-                  "   AAAAAA  ",
-                  "    AAAA   " ],
-                [ "   AAAA    ",
-                  "  AAAAAA   ",
-                  " AAAAAAAA  ",
-                  " AXXXXXXXA ",
-                  "AXXXXXXXXXA",
-                  " AXXXXXXXA ",
-                  " AAAAAAAA  ",
-                  "  AAAAAA   ",
-                  "   AAAA    " ]
+                [ "    XXXX    ",
+                  "   XXXXXX   ",
+                  "  XEXXXXEX  ",
+                  " XXBBXXBBXX ",
+                  "XXXXXXXXXX  ",
+                  " DDDDDDDD   ",
+                  "XXXXXXXX    ",
+                  " XX  XXX    " ],
+                [ "   XXXX    ",
+                  "  XXXXXX   ",
+                  " XEXXXXEX  ",
+                  "XXBBXXBBX  ",
+                  "XXXXXXXX   ",
+                  " DDDDDD    ",
+                  "XXXXXX     ",
+                  "XX  XX     " ]
             ]
         }
 
@@ -96,7 +106,7 @@ class EnemyStyle:
         frames = self.animations[self.current_animation]
         if len(frames) > 1:
             self.time_since_last_frame += dt
-            if self.time_since_last_frame >= self.animation_speed:
+            if self.time_since_last_frame >= self.animation_speeds[self.current_animation]:
                 self.current_frame = (self.current_frame + 1) % len(frames)
                 self.time_since_last_frame = 0
         else:

@@ -4,104 +4,100 @@ from typing import Dict, List, Tuple
 class PlayerStyle:
     def __init__(
         self,
-        base_color: Tuple[int, int, int] = (0, 128, 255),  # Azul más vibrante
-        accent_color: Tuple[int, int, int] = (255, 215, 0),  # Dorado para efectos
-        pixel_size: int = 8,  # Pixel size más pequeño para más detalle
-        animation_speeds: Dict[str, float] = None
+        base_color: Tuple[int, int, int] = (34, 177, 76),  # Verde claro como Link
+        accent_color: Tuple[int, int, int] = (181, 230, 29),  # Verde más claro para detalles
+        pixel_size: int = 8  # Píxeles más grandes para estilo NES
     ):
-        # Configuración de colores y tamaños
         self.colors = {
-            'X': base_color,
-            'A': accent_color,
-            ' ': None  # Transparente
+            'X': base_color,        # Color base del personaje
+            'A': accent_color,      # Detalles del personaje
+            'B': (139, 69, 19),    # Marrón para detalles
+            'W': (255, 255, 255),   # Blanco para efectos
+            ' ': None              # Transparente
         }
         
         self.pixel_size = pixel_size
-        self.width = 60
-        self.height = 60
+        self.width = 32  # Tamaño más pequeño, estilo NES
+        self.height = 32
         
-        # Sistema de animaciones mejorado
-        self.animations = self._load_animations()
-        self.animation_speeds = animation_speeds or {
-            'idle': 0.3,
-            'run': 0.15,
-            'jump': 0.2,
-            'attack': 0.1
-        }
-        
-        # Estado de animación
-        self.current_animation = 'idle'
-        self.previous_animation = None
-        self.current_frame = 0
-        self.time_since_last_frame = 0
-        self.parsed_frames_cache = {}  # Cache de frames renderizados
-
-    def _load_animations(self) -> Dict[str, List[List[str]]]:
-        """Carga y devuelve las definiciones de animaciones mejoradas"""
-        return {
+        self.animations = {
             "idle": [
                 [ "   XXXX   ",
                   "  XXXXXX  ",
+                  " XXAAAAXX ",
+                  " XWXXXXWX ",
                   " XXXXXXXX ",
-                  "XXXXXXXXXX",
-                  "XX XXXX XX",
-                  "XXXXXXXXXX",
-                  " XX XX XX ",
-                  " XXX  XXX ",
-                  "XXXX  XXXX" ]
+                  "  BBBBBB  ",
+                  " XXXXXXXX ",
+                  " XX XX XX " ],
+                [ "   XXXX   ",
+                  "  XXXXXX  ",
+                  " XXAAAAXX ",
+                  " XWXXXXWX ",
+                  " XXXXXXXX ",
+                  "  BBBBBB  ",
+                  " XXXXXXXX ",
+                  "  XXBBXX  " ]
             ],
             "run": [
                 [ "   XXXX   ",
                   "  XXXXXX  ",
+                  " XXAAAAXX ",
+                  " XWXXXXWX ",
                   " XXXXXXXX ",
-                  "XXXXXXXXXX",
-                  "XX XXXX XX",
-                  "XXXXXXXXXX",
-                  " XX XX    ",
-                  "XXXX XX   ",
-                  " XXX  XX  " ],
+                  "  BBBBBB  ",
+                  "  XXXXXX  ",
+                  " XX    XX " ],
                 [ "   XXXX   ",
                   "  XXXXXX  ",
+                  " XXAAAAXX ",
+                  " XWXXXXWX ",
                   " XXXXXXXX ",
-                  "XXXXXXXXXX",
-                  "XX XXXX XX",
-                  "XXXXXXXXXX",
-                  "    XX XX ",
-                  "   XX XXXX",
-                  "  XX  XXX " ]
+                  "  BBBBBB  ",
+                  " XX  XX   ",
+                  "XX    XX  " ]
             ],
             "jump": [
                 [ "   XXXX   ",
-                  " XXXXXXXX ",
-                  "XXXXXXXXXX",
-                  "XX XXXX XX",
-                  " XXXXXXXX ",
                   "  XXXXXX  ",
-                  " XXX  XXX ",
-                  "XXXX  XXXX",
-                  " XXX  XXX " ]
+                  " XXAAAAXX ",
+                  " XWXXXXWX ",
+                  " XXXXXXXX ",
+                  "  BBBBBB  ",
+                  " XXXXXXXX ",
+                  "XX    XXX " ]
             ],
             "attack": [
-                [ "    AAAA    ",
-                  "   AAAAAA   ",
-                  "  AAAAAAAA  ",
-                  " AXXXXXXXXA ",
-                  "AXXXXXXXXXA",
-                  " AXXXXXXXXA ",
-                  "  AAAAAAAA  ",
-                  "   AAAAAA   ",
-                  "    AAAA    " ],
-                [ "   AAAA   ",
-                  "  AAAAAA  ",
-                  " AAAAAAAA ",
-                  "AXXXXXXXXA",
-                  "AXXXXXXXXA",
-                  "AXXXXXXXXA",
-                  " AAAAAAAA ",
-                  "  AAAAAA  ",
-                  "   AAAA   " ]
+                [ "    WWWW   ",
+                  "   WWWWWW  ",
+                  "  XXAAAAXX ",
+                  " XXWXXXXWXX",
+                  " XXXXXXXXX ",
+                  "  BBBBBB  ",
+                  " XXXXXXX  ",
+                  "XX    XX  " ],
+                [ "   WWWW    ",
+                  "  WWWWWW   ",
+                  " XXAAAAXX  ",
+                  "XXWXXXXWXX ",
+                  "XXXXXXXXX  ",
+                  " BBBBBB   ",
+                  "XXXXXXX   ",
+                  " XX  XX   " ]
             ]
         }
+        
+        self.animation_speeds = {
+            'idle': 0.5,    # Más lento para idle
+            'run': 0.15,    # Más rápido para correr
+            'jump': 0.2,
+            'attack': 0.1
+        }
+        
+        self.current_animation = 'idle'
+        self.current_frame = 0
+        self.time_since_last_frame = 0
+        self.parsed_frames_cache = {}
 
     def update_animation(
         self,

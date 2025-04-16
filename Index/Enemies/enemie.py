@@ -5,46 +5,96 @@ from Index.Enemies.style_enemie import EnemyStyle
 from Index.Utils.collision_helper import CollisionHelper
 
 class Enemy:
-    def __init__(self, x, y):
+    # Configuraciones de dificultad
+    DIFFICULTY_SETTINGS = {
+        0: {  # Fácil
+            'health': 80,
+            'damage': 8,
+            'speed': 200,
+            'acceleration': 1200,
+            'jump_power': 400,
+            'aggro_range': 250,
+            'attack_cooldown': 2.0,
+            'knockback_resistance': 0.7
+        },
+        1: {  # Normal
+            'health': 100,
+            'damage': 10,
+            'speed': 300,
+            'acceleration': 1500,
+            'jump_power': 500,
+            'aggro_range': 300,
+            'attack_cooldown': 1.5,
+            'knockback_resistance': 0.5
+        },
+        2: {  # Difícil
+            'health': 120,
+            'damage': 15,
+            'speed': 400,
+            'acceleration': 1800,
+            'jump_power': 600,
+            'aggro_range': 400,
+            'attack_cooldown': 1.0,
+            'knockback_resistance': 0.3
+        }
+    }
+
+    def __init__(self, x, y, difficulty=1):
         self.x = x
         self.y = y
         self.width = 50
         self.height = 50
         self.velocity_x = 0
         self.velocity_y = 0
-        self.acceleration = 1500
-        self.friction = 0.85
-        self.max_velocity = 300
         self.gravity = 980
-        self.jump_power = 500
         self.is_jumping = False
         self.attack_range = 60
         self.is_attacking = False
-        self.damage = 10
         self.style = EnemyStyle()
-        self.attack_cooldown = 1.5
         self.last_attack_time = 0
         self.on_ground = False
-        self.state = 'patrol'  # New state machine
+        self.state = 'patrol'
         self.patrol_direction = 1
         self.patrol_timer = 0
         self.patrol_duration = 2.0
-        self.aggro_range = 300
-        self.health = 100
-        self.max_health = 100
-        self.knockback_resistance = 0.5
         self.invulnerable = False
         self.invulnerable_timer = 0
         self.invulnerable_duration = 0.5
+        
+        # Aplicar configuración de dificultad
+        self.set_difficulty(difficulty)
+        
+        # Inicializar valores de salud
+        self.health = self.max_health
+        
+    def set_difficulty(self, difficulty):
+        """Actualizar parámetros según el nivel de dificultad"""
+        settings = self.DIFFICULTY_SETTINGS[difficulty]
+        self.max_health = settings['health']
+        self.damage = settings['damage']
+        self.max_velocity = settings['speed']
+        self.acceleration = settings['acceleration']
+        self.jump_power = settings['jump_power']
+        self.aggro_range = settings['aggro_range']
+        self.attack_cooldown = settings['attack_cooldown']
+        self.knockback_resistance = settings['knockback_resistance']
+        
+        # Reiniciar salud al cambiar dificultad
+        self.health = self.max_health
 
     def move_towards_player(self, player, dt):
         """Move towards player with smooth acceleration"""
-        if self.x < player.x:
-            self.velocity_x += self.acceleration * dt
-        else:
-            self.velocity_x -= self.acceleration * dt
+        # Calcular dirección al jugador
+        direction = 1 if player.x > self.x else -1
+        target_velocity = self.max_velocity * direction
         
-        # Clamp velocity
+        # Aplicar aceleración
+        if abs(self.velocity_x - target_velocity) > self.acceleration * dt:
+            self.velocity_x += self.acceleration * direction * dt
+        else:
+            self.velocity_x = target_velocity
+        
+        # Limitar velocidad
         self.velocity_x = max(min(self.velocity_x, self.max_velocity), -self.max_velocity)
 
     def jump(self):
@@ -125,7 +175,7 @@ class Enemy:
             self.jump()
 
     def update(self, player, platforms, dt):
-        """Enhanced update with correct coordinate system"""
+        """Enhanced update with difficulty-based behavior"""
         # Update timers
         if self.invulnerable:
             self.invulnerable_timer -= dt
@@ -135,11 +185,14 @@ class Enemy:
         # Calculate distance to player
         distance_to_player = abs(player.x - self.x)
         
-        # State machine
+        # State machine with difficulty-based behavior
         if distance_to_player <= self.attack_range:
             self.state = 'attack'
         elif distance_to_player <= self.aggro_range:
             self.state = 'chase'
+            # En dificultad difícil, saltar más agresivamente
+            if self.max_health >= 120 and self.on_ground and random.random() < 0.05:
+                self.jump()
         else:
             self.state = 'patrol'
             
