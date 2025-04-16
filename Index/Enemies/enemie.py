@@ -60,6 +60,7 @@ class Enemy:
         self.invulnerable = False
         self.invulnerable_timer = 0
         self.invulnerable_duration = 0.5
+        self.friction = 0.85  # Added missing friction attribute
         
         # Aplicar configuración de dificultad
         self.set_difficulty(difficulty)
