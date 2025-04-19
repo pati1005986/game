@@ -4,18 +4,20 @@ block_cipher = None
 
 a = Analysis(
     ['main.py'],
-    pathex=[],
+    pathex=['.'],
     binaries=[],
-    datas=[
-        ('Index', 'Index'),  # Incluir todo el directorio Index
-    ],
+    datas=[('Index', 'Index')],
     hiddenimports=[
         'pygame',
-        'random',
-        'math',
-        'time',
-        'sys',
-        'os'
+        'Index.World.level_1',
+        'Index.World.procedural_levels',
+        'Index.World.style_worlds',
+        'Index.Player.player',
+        'Index.Player.style_player',
+        'Index.Enemies.enemie',
+        'Index.Enemies.style_enemie',
+        'Index.Menu.menu_system',
+        'Index.Utils.collision_helper'
     ],
     hookspath=[],
     hooksconfig={},
@@ -43,10 +45,9 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,  # Mantenemos esto en True para ver errores
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None  # Puedes añadir un icono personalizado aquí si lo deseas
 )

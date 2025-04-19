@@ -61,4 +61,3 @@ missing module named pygame._common - imported by pygame.rect (top-level), pygam
 missing module named 'pygame.overlay' - imported by pygame (optional)
 missing module named 'pygame.cdrom' - imported by pygame (conditional, optional)
 missing module named _suggestions - imported by traceback (delayed, optional)
-missing module named 'Index.World.level_1' - imported by C:\Users\DELL\Pictures\game\main.py (top-level)
