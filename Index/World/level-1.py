@@ -13,6 +13,7 @@ from Index.World.style_worlds import draw_gradient_background
 from Index.World.procedural_levels import generate_platforms
 from Index.Enemies.enemie import Enemy
 from Index.Menu.menu_system import Menu, Settings, change_screen_resolution
+from Index.Utils.collision_helper import CollisionHelper
 
 # Initialize Pygame and mixer for sound
 pygame.init()
@@ -42,32 +43,84 @@ max_combo = 0
 class ParticleSystem:
     def __init__(self):
         self.particles = []
+        self.particle_surfaces = {}
+        self.max_particles = 200
+        
+    def _get_particle_surface(self, size: int, color: tuple) -> pygame.Surface:
+        """Obtiene o crea una superficie pre-renderizada para partículas"""
+        key = (size, color)
+        if key not in self.particle_surfaces:
+            surf = pygame.Surface((size, size), pygame.SRCALPHA)
+            pygame.draw.circle(surf, (*color, 255), (size//2, size//2), size//2)
+            self.particle_surfaces[key] = surf
+        return self.particle_surfaces[key]
     
-    def add_particle(self, x, y, color, velocity_x, velocity_y, lifetime=1.0):
-        self.particles.append({
-            'x': x, 'y': y,
-            'vx': velocity_x, 'vy': velocity_y,
-            'color': color,
-            'lifetime': lifetime,
-            'size': 5
-        })
+    def add_particle(self, x: float, y: float, color: tuple, velocity_x: float, 
+                    velocity_y: float, lifetime: float = 1.0, size: int = 5):
+        """Añade una nueva partícula si no se excede el límite"""
+        if len(self.particles) < self.max_particles:
+            self.particles.append({
+                'x': x, 'y': y,
+                'vx': velocity_x, 'vy': velocity_y,
+                'color': color,
+                'lifetime': lifetime,
+                'max_lifetime': lifetime,
+                'size': size
+            })
     
-    def update(self, dt):
+    def update(self, dt: float) -> None:
+        """Actualiza todas las partículas con física optimizada"""
+        # Actualizar en lote para mejor rendimiento
         for particle in self.particles[:]:
+            # Actualizar posición con integración de Verlet
             particle['x'] += particle['vx'] * dt
             particle['y'] += particle['vy'] * dt
-            particle['vy'] -= 500 * dt  # Gravity
+            particle['vy'] -= 500 * dt  # Gravedad
+            
+            # Actualizar tiempo de vida
             particle['lifetime'] -= dt
             if particle['lifetime'] <= 0:
                 self.particles.remove(particle)
     
-    def draw(self, screen):
+    def draw(self, screen: pygame.Surface) -> None:
+        """Dibuja las partículas con técnicas de renderizado optimizadas"""
+        # Agrupar partículas por tamaño y color para minimizar cambios de superficie
+        particle_groups = {}
         for particle in self.particles:
-            alpha = int(255 * (particle['lifetime']))
-            color = (*particle['color'], alpha)
-            surf = pygame.Surface((particle['size'], particle['size']), pygame.SRCALPHA)
-            pygame.draw.circle(surf, color, (particle['size']//2, particle['size']//2), particle['size']//2)
-            screen.blit(surf, (particle['x'], screen.get_height() - particle['y']))
+            key = (particle['size'], particle['color'])
+            if key not in particle_groups:
+                particle_groups[key] = []
+            particle_groups[key].append(particle)
+        
+        # Dibujar cada grupo de partículas
+        for (size, color), group in particle_groups.items():
+            surface = self._get_particle_surface(size, color)
+            
+            # Dibujar todas las partículas del mismo tipo en lote
+            for particle in group:
+                # Calcular alpha basado en tiempo de vida
+                alpha = int(255 * (particle['lifetime'] / particle['max_lifetime']))
+                if alpha > 0:
+                    # Crear copia con alpha ajustado
+                    temp_surf = surface.copy()
+                    temp_surf.set_alpha(alpha)
+                    
+                    # Dibujar partícula
+                    screen.blit(temp_surf,
+                              (particle['x'] - size//2,
+                               screen.get_height() - particle['y'] - size//2))
+                               
+    def create_explosion(self, x: float, y: float, color: tuple,
+                        num_particles: int = 20, spread: float = 200):
+        """Crea una explosión de partículas con efecto mejorado"""
+        for _ in range(num_particles):
+            angle = random.uniform(0, math.pi * 2)
+            speed = random.uniform(100, spread)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            lifetime = random.uniform(0.5, 1.5)
+            size = random.randint(3, 7)
+            self.add_particle(x, y, color, vx, vy, lifetime, size)
 
 class PowerUp:
     def __init__(self, x, y, type):
@@ -78,14 +131,47 @@ class PowerUp:
         self.height = 20
         self.active = True
         self.collected = False
-        self.effect_duration = 10.0  # 10 segundos de duración
+        self.effect_duration = 10.0
         self.animation_offset = 0
         self.float_speed = 2
         self.float_range = 10
+        self.glow_intensity = 0
+        self.particles = []
+        self.time_active = 0
         
     def update(self, dt):
-        # Animación flotante
-        self.animation_offset = math.sin(time.time() * self.float_speed) * self.float_range
+        self.time_active += dt
+        
+        # Animación flotante suave
+        self.animation_offset = math.sin(self.time_active * self.float_speed) * self.float_range
+        
+        # Efecto de brillo pulsante
+        self.glow_intensity = abs(math.sin(self.time_active * 3)) * 0.5
+        
+        # Actualizar partículas existentes
+        for particle in self.particles[:]:
+            particle['lifetime'] -= dt
+            if particle['lifetime'] <= 0:
+                self.particles.remove(particle)
+                continue
+                
+            particle['x'] += particle['vx'] * dt
+            particle['y'] += particle['vy'] * dt
+            particle['alpha'] = int(255 * (particle['lifetime'] / particle['max_lifetime']))
+        
+        # Generar nuevas partículas
+        if random.random() < 0.1:
+            angle = random.uniform(0, math.pi * 2)
+            speed = random.uniform(20, 50)
+            self.particles.append({
+                'x': self.x + self.width/2,
+                'y': self.y + self.height/2,
+                'vx': math.cos(angle) * speed,
+                'vy': math.sin(angle) * speed,
+                'lifetime': random.uniform(0.5, 1.0),
+                'max_lifetime': 1.0,
+                'alpha': 255
+            })
         
     def draw(self, screen):
         if not self.active:
@@ -93,18 +179,39 @@ class PowerUp:
             
         # Color según el tipo de power-up
         colors = {
-            'speed': (255, 255, 0),  # Amarillo para velocidad
-            'jump': (0, 255, 0),     # Verde para salto
-            'shield': (0, 255, 255)   # Cian para escudo
+            'speed': (255, 255, 0),    # Amarillo
+            'jump': (0, 255, 0),       # Verde
+            'shield': (0, 255, 255)    # Cian
         }
+        base_color = colors[self.type]
         
-        # Dibujar power-up con efecto flotante
+        # Dibujar partículas
+        for particle in self.particles:
+            color = (*base_color, particle['alpha'])
+            pos = (int(particle['x']), int(particle['y'] + self.animation_offset))
+            pygame.draw.circle(screen, color, pos, 2)
+        
+        # Dibujar efecto de brillo
+        glow_size = self.width + 10 + math.sin(self.time_active * 4) * 4
+        glow_surface = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+        glow_color = (*base_color, int(128 * self.glow_intensity))
+        pygame.draw.circle(glow_surface, glow_color,
+                         (glow_size//2, glow_size//2), glow_size//2)
+        
+        # Posición con animación flotante
         y_pos = self.y + self.animation_offset
-        pygame.draw.rect(screen, colors[self.type],
+        screen.blit(glow_surface,
+                   (self.x + self.width//2 - glow_size//2,
+                    y_pos + self.height//2 - glow_size//2))
+        
+        # Dibujar power-up principal
+        pygame.draw.rect(screen, base_color,
                         (self.x, y_pos, self.width, self.height))
         
-        # Dibujar borde brillante
-        pygame.draw.rect(screen, WHITE,
+        # Dibujar borde brillante con efecto pulsante
+        border_color = tuple(min(255, c + int(100 * self.glow_intensity))
+                           for c in base_color)
+        pygame.draw.rect(screen, border_color,
                         (self.x, y_pos, self.width, self.height), 2)
 
 # Añadir variables globales para power-ups
@@ -244,22 +351,59 @@ def reset_level(current_level, screen_width, screen_height):
     return platforms, (player_x, player_y), (enemy_x, enemy_y)
 
 def update_entities(player, enemy, platforms, dt):
-    """Update all entities with collision checks"""
-    # Update entities
-    player.update(dt, platforms)
-    enemy.update(player, platforms, dt)
-
-    # Check entity collisions
-    if enemy.check_player_collision(player):
-        # Collision response is handled inside check_player_collision
-        pass
-
+    """Update all entities with optimized collision detection"""
+    # Actualizar cuadrícula espacial con todas las entidades
+    collision_helper = CollisionHelper()
+    all_entities = [player, enemy] + platforms
+    collision_helper.update_spatial_grid(all_entities)
+    
+    # Actualizar entidades
+    player.update(dt)
+    enemy.update(player, [], dt)  # Pasamos lista vacía porque manejaremos colisiones aquí
+    
+    # Manejar colisiones del jugador
+    potential_collisions = collision_helper.get_potential_collisions(player)
+    for other in potential_collisions:
+        if other in platforms:
+            # Colisión con plataforma
+            normal, depth = collision_helper.get_collision_normal(player, other)
+            if normal[1] < 0:  # Colisión desde arriba
+                player.y = other.rect.top
+                player.velocity_y = 0
+                player.is_jumping = False
+                player.on_ground = True
+            elif normal[1] > 0:  # Colisión desde abajo
+                player.y = other.rect.bottom
+                player.velocity_y = 0
+        elif other == enemy:
+            # Colisión con enemigo
+            if collision_helper.check_pixel_perfect_collision(player, enemy):
+                enemy.check_player_collision(player)
+    
+    # Manejar colisiones del enemigo
+    potential_collisions = collision_helper.get_potential_collisions(enemy)
+    for other in potential_collisions:
+        if other in platforms:
+            # Colisión con plataforma
+            normal, depth = collision_helper.get_collision_normal(enemy, other)
+            if normal[1] < 0:  # Colisión desde arriba
+                enemy.y = other.rect.top
+                enemy.velocity_y = 0
+                enemy.is_jumping = False
+                enemy.on_ground = True
+            elif normal[1] > 0:  # Colisión desde abajo
+                enemy.y = other.rect.bottom
+                enemy.velocity_y = 0
+    
+    # Limpiar caché después de actualizar
+    collision_helper.clear_cache()
+    
     # Check for falls
     if check_entity_fall(player, SCREEN_HEIGHT):
-        return True, False  # Player fell, next level
+        return True, False  # Player fell, game over
     elif check_entity_fall(enemy, SCREEN_HEIGHT):
         return False, True  # Enemy fell, victory
-
+    
     return False, False  # Continue current level
 
 def check_platform_collisions(entity, platforms, screen):
@@ -330,23 +474,30 @@ def initialize_game():
     enemy = Enemy(x=enemy_x, y=enemy_y)
 
 def update_game_state(dt):
-    global combo_timer, combo, current_level, platforms
-    player.update(dt, platforms)
-    enemy.update(player, platforms, dt)
+    global combo_timer, combo, current_level, platforms, score
+    
+    # Actualizar entidades con sistema de colisiones optimizado
+    player_fell, enemy_fell = update_entities(player, enemy, platforms, dt)
+    
+    # Actualizar sistemas visuales
     particles.update(dt)
+    for platform in platforms:
+        platform.update(dt)
     
     # Actualizar power-ups
     update_power_ups(dt)
     
     # Generar power-up aleatorio
-    if len(power_ups) < 3 and random.random() < 0.01:  # 1% de probabilidad por frame
+    if len(power_ups) < 3 and random.random() < 0.01:
         spawn_power_up()
     
+    # Actualizar combo
     if combo_timer > 0:
         combo_timer -= dt
         if combo_timer <= 0:
             combo = 0
     
+    # Manejar transiciones de nivel
     level_changed, exit_direction = check_level_transition(player, SCREEN_WIDTH)
     if level_changed:
         current_level += 1
@@ -490,7 +641,7 @@ def main():
         elif current_state == SETTINGS:
             settings.draw(draw_gradient_background)
         elif current_state == GAME:
-            # Lógica del juego existente
+            # Input handling
             keys = pygame.key.get_pressed()
             moving = keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
             player.style.update_animation(dt, moving, player.is_jumping, player.is_attacking)
@@ -504,7 +655,7 @@ def main():
                 if abs(player.x - enemy.x) < 60 and abs(player.y - enemy.y) < 60:
                     knockback_x = 500 if player.facing_right else -500
                     enemy.take_damage(20, knockback_x, 300)
-                    create_damage_particles(enemy.x, enemy.y, 5)
+                    particles.create_explosion(enemy.x, enemy.y, RED, 20, 200)
                     combo += 1
                     combo_timer = 2.0
                     score += 100 * combo

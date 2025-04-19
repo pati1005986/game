@@ -1,24 +1,39 @@
 import pygame
+import math
+import time
+import random
 from typing import Dict, List, Tuple
 
 class PlayerStyle:
     def __init__(
         self,
-        base_color: Tuple[int, int, int] = (34, 177, 76),  # Verde claro como Link
-        accent_color: Tuple[int, int, int] = (181, 230, 29),  # Verde más claro para detalles
-        pixel_size: int = 8  # Píxeles más grandes para estilo NES
+        base_color: Tuple[int, int, int] = (34, 177, 76),  # Verde claro
+        accent_color: Tuple[int, int, int] = (181, 230, 29),  # Verde más claro
+        pixel_size: int = 8
     ):
         self.colors = {
             'X': base_color,        # Color base del personaje
             'A': accent_color,      # Detalles del personaje
             'B': (139, 69, 19),    # Marrón para detalles
             'W': (255, 255, 255),   # Blanco para efectos
+            'G': (200, 255, 200),   # Verde brillante para efectos
             ' ': None              # Transparente
         }
         
         self.pixel_size = pixel_size
-        self.width = 32  # Tamaño más pequeño, estilo NES
+        self.width = 32
         self.height = 32
+        self.animation_blend_time = 0.1
+        self.current_blend = 0
+        self.previous_animation = 'idle'
+        self.animation_offset_y = 0
+        self.squash_stretch = 1.0
+        self.glow_intensity = 0
+        self.shake_offset = 0
+        self.time_active = 0
+        self.particles = []
+        self.trail_points = []
+        self.max_trail_points = 5
         
         self.animations = {
             "idle": [
@@ -88,8 +103,8 @@ class PlayerStyle:
         }
         
         self.animation_speeds = {
-            'idle': 0.5,    # Más lento para idle
-            'run': 0.15,    # Más rápido para correr
+            'idle': 0.5,
+            'run': 0.15,
             'jump': 0.2,
             'attack': 0.1
         }
@@ -99,87 +114,189 @@ class PlayerStyle:
         self.time_since_last_frame = 0
         self.parsed_frames_cache = {}
 
-    def update_animation(
-        self,
-        dt: float,
-        moving: bool = False,
-        jumping: bool = False,
-        attacking: bool = False,
-        allow_interrupt: bool = True
-    ) -> None:
-        """Actualiza la animación con lógica mejorada"""
-        new_animation = self._determine_animation_state(moving, jumping, attacking)
+    def update_animation(self, dt, moving=False, jumping=False, attacking=False):
+        self.time_active += dt
         
+        # Determinar nueva animación
+        new_animation = (
+            'attack' if attacking else
+            'jump' if jumping else
+            'run' if moving else
+            'idle'
+        )
+        
+        # Manejar transición suave entre animaciones
         if new_animation != self.current_animation:
-            if allow_interrupt or self._is_animation_complete():
-                self._change_animation(new_animation)
-
-        self._update_frame_progress(dt)
-
-    def _determine_animation_state(
-        self,
-        moving: bool,
-        jumping: bool,
-        attacking: bool
-    ) -> str:
-        """Determina el estado de animación apropiado"""
-        if attacking:
-            return 'attack'
-        if jumping:
-            return 'jump'
-        return 'run' if moving else 'idle'
-
-    def _change_animation(self, new_animation: str) -> None:
-        """Cambia a una nueva animación con reset de frame"""
-        if new_animation not in self.animations:
-            raise ValueError(f"Animación no válida: {new_animation}")
+            self.previous_animation = self.current_animation
+            self.current_animation = new_animation
+            self.current_blend = self.animation_blend_time
         
-        self.previous_animation = self.current_animation
-        self.current_animation = new_animation
-        self.current_frame = 0
-        self.time_since_last_frame = 0
-
-    def _update_frame_progress(self, dt: float) -> None:
-        """Actualiza el progreso de los frames de animación"""
+        # Actualizar blend
+        if self.current_blend > 0:
+            self.current_blend = max(0, self.current_blend - dt)
+        
+        # Actualizar frame actual
         frames = self.animations[self.current_animation]
-        animation_speed = self.animation_speeds[self.current_animation]
-        
         if len(frames) > 1:
             self.time_since_last_frame += dt
-            if self.time_since_last_frame >= animation_speed:
+            if self.time_since_last_frame >= self.animation_speeds[self.current_animation]:
                 self.current_frame = (self.current_frame + 1) % len(frames)
                 self.time_since_last_frame = 0
+        
+        # Actualizar efectos visuales
+        self.glow_intensity = (math.sin(self.time_active * 3) + 1) * 0.5
+        
+        # Efectos de squash y stretch
+        if jumping:
+            self.squash_stretch = 1.2
+        elif moving:
+            self.squash_stretch = 1.0 + math.sin(self.time_active * 10) * 0.1
+        else:
+            self.squash_stretch = 1.0 + math.sin(self.time_active * 2) * 0.05
+        
+        # Efecto de vibración al atacar
+        if attacking:
+            self.shake_offset = random.randint(-2, 2)
+        else:
+            self.shake_offset = 0
+        
+        # Actualizar partículas
+        self._update_particles(dt, attacking, moving)
 
-    def _is_animation_complete(self) -> bool:
-        """Verifica si la animación actual ha completado un ciclo"""
-        return self.current_frame == len(self.animations[self.current_animation]) - 1
+    def _update_particles(self, dt, attacking, moving):
+        # Actualizar partículas existentes
+        for particle in self.particles[:]:
+            particle['lifetime'] -= dt
+            if particle['lifetime'] <= 0:
+                self.particles.remove(particle)
+                continue
+            
+            particle['x'] += particle['vx'] * dt
+            particle['y'] += particle['vy'] * dt
+            particle['alpha'] = int(255 * (particle['lifetime'] / particle['max_lifetime']))
+        
+        # Generar partículas según el estado
+        if attacking and random.random() < 0.3:
+            self._spawn_attack_particles()
+        elif moving and random.random() < 0.2:
+            self._spawn_movement_particles()
 
-    def _parse_animation_frame(self, frame: List[str]) -> List[pygame.Rect]:
-        """Parsea un frame de animación a rectángulos optimizados"""
-        parsed = []
-        for y, row in enumerate(frame):
-            for x, pixel in enumerate(row):
+    def _spawn_attack_particles(self):
+        for _ in range(3):
+            angle = random.uniform(-math.pi/4, math.pi/4)
+            speed = random.uniform(100, 200)
+            self.particles.append({
+                'x': 0, 'y': 0,
+                'vx': math.cos(angle) * speed,
+                'vy': math.sin(angle) * speed,
+                'lifetime': random.uniform(0.2, 0.4),
+                'max_lifetime': 0.4,
+                'alpha': 255,
+                'type': 'attack'
+            })
+
+    def _spawn_movement_particles(self):
+        self.particles.append({
+            'x': random.uniform(-5, 5),
+            'y': self.height,
+            'vx': random.uniform(-20, 20),
+            'vy': random.uniform(-50, -20),
+            'lifetime': random.uniform(0.3, 0.6),
+            'max_lifetime': 0.6,
+            'alpha': 255,
+            'type': 'movement'
+        })
+
+    def draw(self, screen, x, y):
+        # Aplicar transformaciones
+        draw_x = x + self.shake_offset
+        draw_y = y
+        scaled_height = self.height * self.squash_stretch
+        height_diff = scaled_height - self.height
+        draw_y -= height_diff
+        
+        # Dibujar partículas
+        for particle in self.particles:
+            if particle['type'] == 'attack':
+                color = (*self.colors['W'][:3], particle['alpha'])
+            else:
+                color = (*self.colors['G'][:3], particle['alpha'])
+            
+            pos = (int(draw_x + particle['x']), int(draw_y + particle['y']))
+            size = 3 if particle['type'] == 'attack' else 2
+            pygame.draw.circle(screen, color, pos, size)
+        
+        # Dibujar sprite principal
+        frames = self.animations[self.current_animation]
+        current_frame = frames[self.current_frame]
+        
+        # Si hay una transición en curso, mezclar con el frame anterior
+        if self.current_blend > 0 and self.previous_animation in self.animations:
+            prev_frames = self.animations[self.previous_animation]
+            prev_frame = prev_frames[min(self.current_frame, len(prev_frames)-1)]
+            blend_factor = self.current_blend / self.animation_blend_time
+            self._draw_blended_frames(screen, draw_x, draw_y, 
+                                    current_frame, prev_frame, blend_factor)
+        else:
+            self._draw_frame(screen, draw_x, draw_y, current_frame)
+
+    def _draw_frame(self, screen, x, y, frame):
+        for row_index, row in enumerate(frame):
+            for col_index, pixel in enumerate(row):
                 if pixel in self.colors and self.colors[pixel]:
-                    rect = pygame.Rect(
-                        x * self.pixel_size,
-                        y * self.pixel_size,
-                        self.pixel_size,
-                        self.pixel_size
-                    )
-                    parsed.append((rect, self.colors[pixel]))
-        return parsed
+                    # Color base
+                    base_color = self.colors[pixel]
+                    
+                    # Añadir brillo dinámico
+                    if pixel in ['X', 'A']:
+                        glow = int(50 * self.glow_intensity)
+                        color = tuple(min(255, c + glow) for c in base_color)
+                    else:
+                        color = base_color
+                    
+                    # Aplicar squash y stretch
+                    pixel_x = x + col_index * self.pixel_size
+                    pixel_y = y + row_index * self.pixel_size * self.squash_stretch
+                    
+                    # Dibujar píxel
+                    pygame.draw.rect(screen, color,
+                                  (pixel_x, pixel_y,
+                                   self.pixel_size,
+                                   self.pixel_size * self.squash_stretch))
 
-    def draw(self, screen: pygame.Surface, x: int, y: int) -> None:
-        """Dibuja el player con optimizaciones de rendimiento"""
-        frame_key = f"{self.current_animation}_{self.current_frame}"
-        
-        if frame_key not in self.parsed_frames_cache:
-            frame_data = self.animations[self.current_animation][self.current_frame]
-            self.parsed_frames_cache[frame_key] = self._parse_animation_frame(frame_data)
-        
-        for rect, color in self.parsed_frames_cache[frame_key]:
-            screen_rect = rect.move(x, y)
-            pygame.draw.rect(screen, color, screen_rect)
+    def _draw_blended_frames(self, screen, x, y, current_frame, prev_frame, blend_factor):
+        for row_index, (current_row, prev_row) in enumerate(zip(current_frame, prev_frame)):
+            for col_index, (current_pixel, prev_pixel) in enumerate(zip(current_row, prev_row)):
+                # Obtener colores
+                current_color = self.colors.get(current_pixel)
+                prev_color = self.colors.get(prev_pixel)
+                
+                if current_color or prev_color:
+                    # Si algún color es None, usar negro para la mezcla
+                    current_color = current_color or (0,0,0)
+                    prev_color = prev_color or (0,0,0)
+                    
+                    # Mezclar colores
+                    blended_color = tuple(
+                        int(prev_color[i] * blend_factor + 
+                            current_color[i] * (1 - blend_factor))
+                        for i in range(3)
+                    )
+                    
+                    # Aplicar efectos visuales
+                    if current_pixel in ['X', 'A'] or prev_pixel in ['X', 'A']:
+                        glow = int(50 * self.glow_intensity)
+                        blended_color = tuple(min(255, c + glow) 
+                                           for c in blended_color)
+                    
+                    # Dibujar píxel con squash y stretch
+                    pixel_x = x + col_index * self.pixel_size
+                    pixel_y = y + row_index * self.pixel_size * self.squash_stretch
+                    
+                    pygame.draw.rect(screen, blended_color,
+                                  (pixel_x, pixel_y,
+                                   self.pixel_size,
+                                   self.pixel_size * self.squash_stretch))
 
     def set_colors(
         self,

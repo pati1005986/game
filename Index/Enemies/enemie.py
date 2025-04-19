@@ -42,15 +42,15 @@ class Enemy:
     def __init__(self, x, y, difficulty=1):
         self.x = x
         self.y = y
-        self.width = 50
-        self.height = 50
+        self.style = EnemyStyle()
+        self.width = self.style.width  # Usar el ancho del sprite
+        self.height = self.style.height  # Usar el alto del sprite
         self.velocity_x = 0
         self.velocity_y = 0
         self.gravity = 980
         self.is_jumping = False
         self.attack_range = 60
         self.is_attacking = False
-        self.style = EnemyStyle()
         self.last_attack_time = 0
         self.on_ground = False
         self.state = 'patrol'
@@ -60,7 +60,7 @@ class Enemy:
         self.invulnerable = False
         self.invulnerable_timer = 0
         self.invulnerable_duration = 0.5
-        self.friction = 0.85  # Added missing friction attribute
+        self.friction = 0.85
         
         # Aplicar configuración de dificultad
         self.set_difficulty(difficulty)
@@ -119,6 +119,7 @@ class Enemy:
 
     def check_platform_collision(self, platforms):
         """Check and handle collisions with platforms using screen coordinates"""
+        # Crear rect del enemigo con las dimensiones correctas del sprite
         enemy_rect = pygame.Rect(
             self.x,
             self.y,
@@ -126,19 +127,38 @@ class Enemy:
             self.height
         )
         
+        # Variable para rastrear si estamos en el suelo
+        was_on_ground = self.on_ground
+        self.on_ground = False
+        
         for platform in platforms:
             if enemy_rect.colliderect(platform.rect):
-                if self.velocity_y >= 0:  # Cayendo (velocidad positiva en coordenadas de pantalla)
-                    if self.y <= platform.rect.top:
+                # Obtener la profundidad de la colisión en cada eje
+                dx = min(enemy_rect.right - platform.rect.left, platform.rect.right - enemy_rect.left)
+                dy = min(enemy_rect.bottom - platform.rect.top, platform.rect.bottom - enemy_rect.top)
+                
+                # Determinar la dirección de la colisión comparando las profundidades
+                if dx < dy:  # Colisión horizontal
+                    if enemy_rect.centerx < platform.rect.centerx:  # Colisión desde la izquierda
+                        self.x = platform.rect.left - self.width
+                    else:  # Colisión desde la derecha
+                        self.x = platform.rect.right
+                    self.velocity_x = 0
+                else:  # Colisión vertical
+                    if enemy_rect.centery < platform.rect.centery:  # Colisión desde arriba
                         self.y = platform.rect.top
                         self.velocity_y = 0
                         self.is_jumping = False
                         self.on_ground = True
-                        return True
-
-        if self.velocity_y > 0:
-            self.on_ground = False
-        return False
+                    else:  # Colisión desde abajo
+                        self.y = platform.rect.bottom
+                        self.velocity_y = 0
+                
+        # Si acabamos de dejar el suelo, aplicar un pequeño impulso hacia arriba
+        if was_on_ground and not self.on_ground and self.velocity_y >= 0:
+            self.velocity_y = -100  # Pequeño impulso para hacer el movimiento más suave
+            
+        return self.on_ground
 
     def check_player_collision(self, player):
         """Check for collision with player and handle attack"""
@@ -164,16 +184,31 @@ class Enemy:
         self.velocity_x = self.patrol_direction * self.max_velocity * 0.5
 
     def chase_player(self, player, dt):
-        """Enhanced chase behavior with jumping"""
-        distance = player.x - self.x
-        direction = 1 if distance > 0 else -1
+        """Enhanced chase behavior with jumping and smarter movement"""
+        distance_x = player.x - self.x
+        distance_y = player.y - self.y
+        direction = 1 if distance_x > 0 else -1
         
+        # Actualizar dirección del movimiento
         self.velocity_x += self.acceleration * direction * dt
         self.velocity_x = max(min(self.velocity_x, self.max_velocity), -self.max_velocity)
         
-        # Jump if player is higher and we're on ground
-        if self.on_ground and player.y > self.y + 50:
+        # Ajustar agresividad basada en la salud del enemigo
+        aggression = 1.0 + (1.0 - self.health / self.max_health)
+        
+        # Saltar si:
+        # 1. El jugador está más alto
+        # 2. Hay una plataforma arriba
+        # 3. Estamos en el suelo
+        if self.on_ground and (
+            (distance_y < -50) or  # Jugador está más alto
+            (abs(distance_x) < self.attack_range and random.random() < 0.1 * aggression)  # Salto agresivo
+        ):
             self.jump()
+        
+        # Intentar atacar si está en rango
+        if abs(distance_x) < self.attack_range and abs(distance_y) < 50:
+            self.attack(player)
 
     def update(self, player, platforms, dt):
         """Enhanced update with difficulty-based behavior"""
@@ -191,9 +226,6 @@ class Enemy:
             self.state = 'attack'
         elif distance_to_player <= self.aggro_range:
             self.state = 'chase'
-            # En dificultad difícil, saltar más agresivamente
-            if self.max_health >= 120 and self.on_ground and random.random() < 0.05:
-                self.jump()
         else:
             self.state = 'patrol'
             
@@ -207,24 +239,56 @@ class Enemy:
             
         # Apply gravity
         if not self.on_ground:
-            self.velocity_y += self.gravity * dt  # Gravedad positiva para coordenadas de pantalla
+            self.velocity_y += self.gravity * dt
             
         # Update position
+        prev_x = self.x
+        prev_y = self.y
         self.x += self.velocity_x * dt
         self.y += self.velocity_y * dt
         
-        # Mantener al enemigo dentro de los límites verticales
-        screen_height = 450  # Usar la misma altura que el jugador
-        if self.y > screen_height - self.height:  # Límite inferior
+        # Check collisions with platforms and resolve them
+        collision_found = False
+        for platform in platforms:
+            if pygame.Rect(self.x, self.y, self.width, self.height).colliderect(platform.rect):
+                # Restaurar posición anterior y resolver colisión
+                self.x = prev_x
+                self.y = prev_y
+                
+                # Verificar colisión vertical
+                if self.velocity_y >= 0:  # Cayendo
+                    if self.y <= platform.rect.top:
+                        self.y = platform.rect.top
+                        self.velocity_y = 0
+                        self.is_jumping = False
+                        self.on_ground = True
+                        collision_found = True
+                elif self.velocity_y < 0:  # Subiendo
+                    if self.y + self.height >= platform.rect.bottom:
+                        self.y = platform.rect.bottom
+                        self.velocity_y = 0
+                
+                # Verificar colisión horizontal
+                if not collision_found:  # Solo si no hubo colisión vertical
+                    if self.velocity_x > 0:  # Moviendo a la derecha
+                        self.x = platform.rect.left - self.width
+                        self.velocity_x = 0
+                    elif self.velocity_x < 0:  # Moviendo a la izquierda
+                        self.x = platform.rect.right
+                        self.velocity_x = 0
+        
+        if not collision_found:
+            self.on_ground = False
+        
+        # Mantener al enemigo dentro de los límites de la pantalla
+        screen_height = 450
+        if self.y > screen_height - self.height:
             self.y = screen_height - self.height
             self.velocity_y = 0
             self.on_ground = True
-        elif self.y < 0:  # Límite superior
+        elif self.y < 0:
             self.y = 0
             self.velocity_y = 0
-        
-        # Check collisions
-        self.check_platform_collision(platforms)
         
         # Apply friction
         self.velocity_x *= self.friction
