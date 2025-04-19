@@ -359,9 +359,10 @@ def check_entity_fall(entity, screen_height):
 def reset_level(current_level, screen_width, screen_height):
     """Reset level and return new platforms and positions"""
     platforms = generate_platforms(current_level, screen_width, screen_height)
-    player_x, player_y = platforms[0].get_spawn_position()
+    player_x = 100
+    player_y = platforms[0].rect.top - 100  # Aparecer 100 pixels más arriba de la plataforma
     enemy_x = screen_width - 100  # Position enemy on the right side
-    enemy_y = platforms[0].get_spawn_position()[1]  # Same height as player
+    enemy_y = platforms[0].get_spawn_position()[1] - 300  # 300 pixels más arriba (valor negativo)
     return platforms, (player_x, player_y), (enemy_x, enemy_y)
 
 def update_entities(player, enemy, platforms, dt):
@@ -467,7 +468,7 @@ def reset_player_position(player, direction, screen_width):
         player.x = screen_width - 200
     else:  # right
         player.x = 100
-    player.y = platforms[0].rect.top  # Posición directa sobre la plataforma
+    player.y = platforms[0].rect.top - 100  # Aparecer 100 pixels más arriba de la plataforma
     player.velocity_y = 0  # Resetear velocidad vertical
 
 def initialize_game():
@@ -480,9 +481,9 @@ def initialize_game():
     
     platforms = generate_platforms(current_level, SCREEN_WIDTH, SCREEN_HEIGHT)
     player_x = 100
-    player_y = platforms[0].rect.top
+    player_y = platforms[0].rect.top - 100  # Aparecer 100 pixels más arriba de la plataforma
     enemy_x = SCREEN_WIDTH - 200
-    enemy_y = platforms[0].rect.top
+    enemy_y = platforms[0].rect.top - 300  # 300 pixels más arriba
     
     player = Player(x=player_x, y=player_y)
     enemy = Enemy(x=enemy_x, y=enemy_y)
@@ -519,7 +520,7 @@ def update_game_state(dt):
         platforms = generate_platforms(current_level, SCREEN_WIDTH, SCREEN_HEIGHT)
         reset_player_position(player, exit_direction, SCREEN_WIDTH)
         enemy.x = SCREEN_WIDTH // 2
-        enemy.y = platforms[0].rect.top + 50
+        enemy.y = platforms[0].rect.top - 300  # Aparecer más arriba que la plataforma
 
 def draw_game_state(screen):
     draw_gradient_background(screen)
@@ -570,7 +571,7 @@ def reset_game_state():
     platforms = generate_platforms(current_level, SCREEN_WIDTH, SCREEN_HEIGHT)
     reset_player_position(player, "right", SCREEN_WIDTH)
     enemy.x = SCREEN_WIDTH // 2
-    enemy.y = platforms[0].rect.top
+    enemy.y = platforms[0].rect.top - 300  # Aparecer más arriba que la plataforma
     enemy.velocity_y = 0
 
 def main():

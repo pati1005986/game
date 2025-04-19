@@ -140,11 +140,11 @@ class Platform:
 def generate_platforms(level, screen_width, screen_height):
     platforms = []
     platform_height = 32  # Altura ajustada para bloques de 16px
-    min_platform_width = 96  # Múltiplo de 16 para alineación de bloques
+    min_platform_width = 100  # Múltiplo de 16 para alineación de bloques
     max_platform_width = 256
     
-    # Plataforma base más ancha
-    base_platform = Platform(0, screen_height - 80,
+    # Plataforma base más ancha - ahora justo en la parte inferior
+    base_platform = Platform(0, screen_height - platform_height,
                            screen_width, platform_height)
     platforms.append(base_platform)
     
