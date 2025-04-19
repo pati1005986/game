@@ -67,6 +67,18 @@ class Enemy:
         
         # Inicializar valores de salud
         self.health = self.max_health
+
+        # Inicializar efectos de power-ups
+        self.active_effects = {
+            'speed': 0,
+            'jump': 0,
+            'shield': 0
+        }
+        self.power_up_multipliers = {
+            'speed': 1.5,
+            'jump': 1.3,
+            'shield': 1.0
+        }
         
     def set_difficulty(self, difficulty):
         """Actualizar parámetros según el nivel de dificultad"""
@@ -184,7 +196,7 @@ class Enemy:
         self.velocity_x = self.patrol_direction * self.max_velocity * 0.5
 
     def chase_player(self, player, dt):
-        """Enhanced chase behavior with jumping and smarter movement"""
+        """Enhanced chase behavior with improved jumping and movement"""
         distance_x = player.x - self.x
         distance_y = player.y - self.y
         direction = 1 if distance_x > 0 else -1
@@ -196,22 +208,82 @@ class Enemy:
         # Ajustar agresividad basada en la salud del enemigo
         aggression = 1.0 + (1.0 - self.health / self.max_health)
         
+        # Lógica de salto mejorada
+        should_jump = False
+        
         # Saltar si:
-        # 1. El jugador está más alto
-        # 2. Hay una plataforma arriba
-        # 3. Estamos en el suelo
-        if self.on_ground and (
-            (distance_y < -50) or  # Jugador está más alto
-            (abs(distance_x) < self.attack_range and random.random() < 0.1 * aggression)  # Salto agresivo
-        ):
-            self.jump()
+        # 1. El jugador está más alto que nosotros
+        if distance_y < -50:
+            should_jump = True
+            
+        # 2. Hay un obstáculo en nuestro camino
+        elif self.on_ground and abs(distance_x) < 100:
+            should_jump = True
+            
+        # 3. El jugador saltó recientemente y estamos persiguiéndolo
+        elif player.is_jumping and abs(distance_x) < self.aggro_range * 0.5:
+            should_jump = True
+            
+        # 4. Salto aleatorio agresivo cuando estamos cerca
+        elif (abs(distance_x) < self.attack_range * 2 and 
+              random.random() < 0.1 * aggression):
+            should_jump = True
+        
+        # Ejecutar salto si es necesario y está disponible
+        if should_jump and self.on_ground:
+            # Ajustar la potencia del salto según la distancia vertical al jugador
+            jump_multiplier = 1.0
+            if distance_y < -100:  # El jugador está mucho más alto
+                jump_multiplier = 1.3
+            elif player.is_jumping:  # Intentar alcanzar al jugador que salta
+                jump_multiplier = 1.2
+                
+            # Aplicar el salto con la potencia calculada
+            self.velocity_y = -self.jump_power * jump_multiplier
+            self.is_jumping = True
+            self.on_ground = False
         
         # Intentar atacar si está en rango
         if abs(distance_x) < self.attack_range and abs(distance_y) < 50:
             self.attack(player)
 
+    def apply_power_up(self, power_up_type, duration):
+        """Aplica el efecto de un power-up al enemigo"""
+        self.active_effects[power_up_type] = duration
+        
+        if power_up_type == 'speed':
+            self.max_velocity *= self.power_up_multipliers['speed']
+            self.acceleration *= self.power_up_multipliers['speed']
+        elif power_up_type == 'jump':
+            self.jump_power *= self.power_up_multipliers['jump']
+        elif power_up_type == 'shield':
+            self.invulnerable = True
+            self.invulnerable_timer = duration
+
+    def remove_power_up_effect(self, power_up_type):
+        """Remueve el efecto de un power-up"""
+        if power_up_type == 'speed':
+            self.max_velocity /= self.power_up_multipliers['speed']
+            self.acceleration /= self.power_up_multipliers['speed']
+        elif power_up_type == 'jump':
+            self.jump_power /= self.power_up_multipliers['jump']
+        elif power_up_type == 'shield':
+            self.invulnerable = False
+
+    def update_power_ups(self, dt):
+        """Actualiza los efectos de power-ups activos"""
+        for effect_type in self.active_effects:
+            if self.active_effects[effect_type] > 0:
+                self.active_effects[effect_type] -= dt
+                
+                if self.active_effects[effect_type] <= 0:
+                    self.remove_power_up_effect(effect_type)
+
     def update(self, player, platforms, dt):
         """Enhanced update with difficulty-based behavior"""
+        # Actualizar power-ups
+        self.update_power_ups(dt)
+        
         # Update timers
         if self.invulnerable:
             self.invulnerable_timer -= dt

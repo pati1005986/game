@@ -248,49 +248,63 @@ def update_power_ups(dt):
         power_up.update(dt)
         
         # Verificar colisión con jugador
+        player_rect = pygame.Rect(player.x, player.y, player.style.width, player.style.height)
+        power_up_rect = pygame.Rect(power_up.x, power_up.y, power_up.width, power_up.height)
+        
+        # Verificar colisión con enemigo
+        enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.style.width, enemy.style.height)
+        
         if power_up.active and not power_up.collected:
-            player_rect = pygame.Rect(player.x, player.y, player.style.width, player.style.height)
-            power_up_rect = pygame.Rect(power_up.x, power_up.y, power_up.width, power_up.height)
-            
             if player_rect.colliderect(power_up_rect):
-                apply_power_up(power_up)
+                apply_power_up(power_up, is_player=True)
+                power_up.collected = True
+                power_up.active = False
+                power_ups.remove(power_up)
+            elif enemy_rect.colliderect(power_up_rect):
+                apply_power_up(power_up, is_player=False)
                 power_up.collected = True
                 power_up.active = False
                 power_ups.remove(power_up)
     
-    # Actualizar efectos activos
+    # Actualizar efectos activos del jugador
     for effect_type in active_effects:
         if active_effects[effect_type] > 0:
             active_effects[effect_type] -= dt
             
             # Desactivar efecto cuando expire
             if active_effects[effect_type] <= 0:
-                remove_power_up_effect(effect_type)
+                remove_power_up_effect(effect_type, is_player=True)
 
-def apply_power_up(power_up):
-    """Aplicar efecto del power-up"""
-    global active_effects
-    
-    active_effects[power_up.type] = power_up.effect_duration
-    
-    if power_up.type == 'speed':
-        player.max_velocity *= 1.5
-        player.acceleration *= 1.5
-    elif power_up.type == 'jump':
-        player.jump_power *= 1.3
-    elif power_up.type == 'shield':
-        player.invulnerable = True
-        player.invulnerable_timer = power_up.effect_duration
+def apply_power_up(power_up, is_player=True):
+    """Aplicar efecto del power-up al jugador o enemigo"""
+    if is_player:
+        global active_effects
+        active_effects[power_up.type] = power_up.effect_duration
+        
+        if power_up.type == 'speed':
+            player.max_velocity *= 1.5
+            player.acceleration *= 1.5
+        elif power_up.type == 'jump':
+            player.jump_power *= 1.3
+        elif power_up.type == 'shield':
+            player.invulnerable = True
+            player.invulnerable_timer = power_up.effect_duration
+    else:
+        # Aplicar al enemigo
+        enemy.apply_power_up(power_up.type, power_up.effect_duration)
 
-def remove_power_up_effect(effect_type):
-    """Remover efecto del power-up"""
-    if effect_type == 'speed':
-        player.max_velocity /= 1.5
-        player.acceleration /= 1.5
-    elif effect_type == 'jump':
-        player.jump_power /= 1.3
-    elif effect_type == 'shield':
-        player.invulnerable = False
+def remove_power_up_effect(effect_type, is_player=True):
+    """Remover efecto del power-up del jugador o enemigo"""
+    if is_player:
+        if effect_type == 'speed':
+            player.max_velocity /= 1.5
+            player.acceleration /= 1.5
+        elif effect_type == 'jump':
+            player.jump_power /= 1.3
+        elif effect_type == 'shield':
+            player.invulnerable = False
+    else:
+        enemy.remove_power_up_effect(effect_type)
 
 def draw_power_up_effects(screen):
     """Dibujar efectos activos en la UI"""
