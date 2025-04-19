@@ -498,11 +498,12 @@ def update_game_state(dt):
     for platform in platforms:
         platform.update(dt)
     
-    # Actualizar power-ups
+    # Actualizar power-ups y pasar la lista al enemigo
     update_power_ups(dt)
+    enemy.update(player, platforms, dt, power_ups)  # Pasar power_ups al enemigo
     
-    # Generar power-up aleatorio
-    if len(power_ups) < 3 and random.random() < 0.01:
+    # Generar power-up aleatorio con más frecuencia
+    if len(power_ups) < 3 and random.random() < 0.02:  # Aumentada probabilidad
         spawn_power_up()
     
     # Actualizar combo

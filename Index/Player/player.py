@@ -112,18 +112,22 @@ class Player:
 
         # Regular physics update
         if not self.on_ground:
-            self.velocity_y += self.gravity * dt  # Gravedad positiva para coordenadas de pantalla
+            self.velocity_y += self.gravity * dt
 
         # Actualizar posición
         self.x += self.velocity_x * dt
         self.y += self.velocity_y * dt
 
+        # Actualizar animación basada en el estado del jugador
+        is_moving = abs(self.velocity_x) > 1
+        self.style.update_animation(dt, moving=is_moving, jumping=self.is_jumping, attacking=self.is_attacking)
+
         # Mantener al jugador dentro de los límites verticales
-        if self.y > self.screen_height - self.style.height:  # Límite inferior
+        if self.y > self.screen_height - self.style.height:
             self.y = self.screen_height - self.style.height
             self.velocity_y = 0
             self.on_ground = True
-        elif self.y < 0:  # Límite superior
+        elif self.y < 0:
             self.y = 0
             self.velocity_y = 0
 

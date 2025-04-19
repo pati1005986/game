@@ -80,6 +80,9 @@ class Enemy:
             'shield': 1.0
         }
         
+        # Inicializar referencia al power-up más cercano
+        self.nearest_power_up = None
+        
     def set_difficulty(self, difficulty):
         """Actualizar parámetros según el nivel de dificultad"""
         settings = self.DIFFICULTY_SETTINGS[difficulty]
@@ -226,26 +229,59 @@ class Enemy:
             
         # 4. Salto aleatorio agresivo cuando estamos cerca
         elif (abs(distance_x) < self.attack_range * 2 and 
-              random.random() < 0.1 * aggression):
+              random.random() < 0.2 * aggression):  # Aumentada probabilidad de salto
+            should_jump = True
+            
+        # 5. Saltar si hay un ítem arriba
+        elif self.nearest_power_up and self.nearest_power_up.y < self.y - 50:
             should_jump = True
         
-        # Ejecutar salto si es necesario y está disponible
+        # Ejecutar salto con potencia mejorada
         if should_jump and self.on_ground:
-            # Ajustar la potencia del salto según la distancia vertical al jugador
             jump_multiplier = 1.0
-            if distance_y < -100:  # El jugador está mucho más alto
+            if self.nearest_power_up and self.nearest_power_up.y < self.y:
+                jump_multiplier = 1.4  # Salto más alto para alcanzar ítems
+            elif distance_y < -100:
                 jump_multiplier = 1.3
-            elif player.is_jumping:  # Intentar alcanzar al jugador que salta
+            elif player.is_jumping:
                 jump_multiplier = 1.2
                 
-            # Aplicar el salto con la potencia calculada
             self.velocity_y = -self.jump_power * jump_multiplier
             self.is_jumping = True
             self.on_ground = False
+
+    def find_nearest_power_up(self, power_ups):
+        """Encuentra el power-up más cercano"""
+        self.nearest_power_up = None
+        min_distance = float('inf')
         
-        # Intentar atacar si está en rango
-        if abs(distance_x) < self.attack_range and abs(distance_y) < 50:
-            self.attack(player)
+        for power_up in power_ups:
+            if power_up.active and not power_up.collected:
+                dx = power_up.x - self.x
+                dy = power_up.y - self.y
+                distance = (dx * dx + dy * dy) ** 0.5
+                
+                # Considerar power-ups basado en la salud actual
+                if self.health < self.max_health * 0.5 and power_up.type == 'shield':
+                    distance *= 0.5  # Priorizar escudos cuando tiene poca vida
+                
+                if distance < min_distance:
+                    min_distance = distance
+                    self.nearest_power_up = power_up
+        
+        return self.nearest_power_up
+
+    def move_towards_power_up(self, dt):
+        """Se mueve hacia el power-up más cercano"""
+        if not self.nearest_power_up:
+            return
+            
+        direction = 1 if self.nearest_power_up.x > self.x else -1
+        target_velocity = self.max_velocity * direction * 1.2  # 20% más rápido hacia los ítems
+        
+        # Aplicar aceleración aumentada hacia el ítem
+        self.velocity_x += self.acceleration * direction * dt * 1.5
+        self.velocity_x = max(min(self.velocity_x, target_velocity), -target_velocity)
 
     def apply_power_up(self, power_up_type, duration):
         """Aplica el efecto de un power-up al enemigo"""
@@ -279,9 +315,9 @@ class Enemy:
                 if self.active_effects[effect_type] <= 0:
                     self.remove_power_up_effect(effect_type)
 
-    def update(self, player, platforms, dt):
-        """Enhanced update with difficulty-based behavior"""
-        # Actualizar power-ups
+    def update(self, player, platforms, dt, power_ups=None):
+        """Enhanced update with power-up seeking behavior"""
+        # Actualizar power-ups activos
         self.update_power_ups(dt)
         
         # Update timers
@@ -290,11 +326,22 @@ class Enemy:
             if self.invulnerable_timer <= 0:
                 self.invulnerable = False
 
-        # Calculate distance to player
-        distance_to_player = abs(player.x - self.x)
+        # Buscar power-ups cercanos si están disponibles
+        if power_ups:
+            self.find_nearest_power_up(power_ups)
         
-        # State machine with difficulty-based behavior
-        if distance_to_player <= self.attack_range:
+        # Calculate distance to player and nearest power-up
+        distance_to_player = abs(player.x - self.x)
+        distance_to_power_up = float('inf')
+        if self.nearest_power_up:
+            dx = self.nearest_power_up.x - self.x
+            dy = self.nearest_power_up.y - self.y
+            distance_to_power_up = (dx * dx + dy * dy) ** 0.5
+        
+        # State machine with power-up seeking
+        if self.nearest_power_up and distance_to_power_up < 150:  # Priorizar power-ups cercanos
+            self.move_towards_power_up(dt)
+        elif distance_to_player <= self.attack_range:
             self.state = 'attack'
         elif distance_to_player <= self.aggro_range:
             self.state = 'chase'

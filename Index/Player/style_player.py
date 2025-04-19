@@ -117,49 +117,48 @@ class PlayerStyle:
     def update_animation(self, dt, moving=False, jumping=False, attacking=False):
         self.time_active += dt
         
-        # Determinar nueva animación
-        new_animation = (
-            'attack' if attacking else
-            'jump' if jumping else
-            'run' if moving else
-            'idle'
-        )
+        # Determinar nueva animación y asegurar que la animación de movimiento tenga prioridad correcta
+        if attacking:
+            new_animation = 'attack'
+        elif jumping:
+            new_animation = 'jump'
+        elif moving:
+            new_animation = 'run'
+        else:
+            new_animation = 'idle'
         
         # Manejar transición suave entre animaciones
         if new_animation != self.current_animation:
             self.previous_animation = self.current_animation
             self.current_animation = new_animation
             self.current_blend = self.animation_blend_time
+            # Resetear el frame actual al cambiar de animación
+            self.current_frame = 0
+            self.time_since_last_frame = 0
         
         # Actualizar blend
         if self.current_blend > 0:
             self.current_blend = max(0, self.current_blend - dt)
         
-        # Actualizar frame actual
+        # Actualizar frame actual usando la velocidad específica de la animación
         frames = self.animations[self.current_animation]
         if len(frames) > 1:
             self.time_since_last_frame += dt
             if self.time_since_last_frame >= self.animation_speeds[self.current_animation]:
                 self.current_frame = (self.current_frame + 1) % len(frames)
                 self.time_since_last_frame = 0
-        
+                
         # Actualizar efectos visuales
         self.glow_intensity = (math.sin(self.time_active * 3) + 1) * 0.5
         
-        # Efectos de squash y stretch
+        # Efectos de squash y stretch más pronunciados durante el movimiento
         if jumping:
             self.squash_stretch = 1.2
         elif moving:
-            self.squash_stretch = 1.0 + math.sin(self.time_active * 10) * 0.1
+            self.squash_stretch = 1.0 + math.sin(self.time_active * 12) * 0.15  # Aumentado el efecto
         else:
             self.squash_stretch = 1.0 + math.sin(self.time_active * 2) * 0.05
-        
-        # Efecto de vibración al atacar
-        if attacking:
-            self.shake_offset = random.randint(-2, 2)
-        else:
-            self.shake_offset = 0
-        
+
         # Actualizar partículas
         self._update_particles(dt, attacking, moving)
 
