@@ -226,21 +226,31 @@ class PlayerStyle:
             size = 3 if particle['type'] == 'attack' else 2
             pygame.draw.circle(screen, color, pos, size)
         
-        # Dibujar sprite principal
+        # Dibujar sprite principal con manejo seguro de frames
         frames = self.animations[self.current_animation]
+        if not frames:  # Safety check for empty animation
+            return
+            
+        self.current_frame = self.current_frame % len(frames)  # Ensure valid frame index
         current_frame = frames[self.current_frame]
         
         # Si hay una transición en curso, mezclar con el frame anterior
         if self.current_blend > 0 and self.previous_animation in self.animations:
             prev_frames = self.animations[self.previous_animation]
-            prev_frame = prev_frames[min(self.current_frame, len(prev_frames)-1)]
-            blend_factor = self.current_blend / self.animation_blend_time
-            self._draw_blended_frames(screen, draw_x, draw_y, 
-                                    current_frame, prev_frame, blend_factor)
+            if prev_frames:  # Safety check for previous animation
+                prev_frame_index = min(self.current_frame, len(prev_frames)-1)
+                prev_frame = prev_frames[prev_frame_index]
+                blend_factor = self.current_blend / self.animation_blend_time
+                self._draw_blended_frames(screen, draw_x, draw_y, 
+                                        current_frame, prev_frame, blend_factor)
         else:
             self._draw_frame(screen, draw_x, draw_y, current_frame)
 
     def _draw_frame(self, screen, x, y, frame):
+        """Draw a single frame with safe array access"""
+        if not frame:  # Safety check for empty frame
+            return
+            
         for row_index, row in enumerate(frame):
             for col_index, pixel in enumerate(row):
                 if pixel in self.colors and self.colors[pixel]:
