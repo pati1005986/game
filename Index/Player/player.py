@@ -93,8 +93,16 @@ class Player:
         return False
 
     def update(self, dt, platforms=None):
-        """Update player position using screen coordinates"""
-        # Update timers
+        """Optimized update method with modularized logic."""
+        self.update_timers(dt)
+        self.apply_physics(dt)
+        self.handle_collisions(platforms)
+        self.constrain_to_screen()
+        self.update_animation(dt)
+        self.reset_attack_state()
+
+    def update_timers(self, dt):
+        """Update timers for dash, invulnerability, and coyote time."""
         if not self.dash_available:
             self.dash_timer -= dt
             if self.dash_timer <= 0:
@@ -110,19 +118,26 @@ class Player:
         else:
             self.coyote_timer = self.coyote_time
 
-        # Regular physics update
+    def apply_physics(self, dt):
+        """Apply gravity and update position."""
         if not self.on_ground:
             self.velocity_y += self.gravity * dt
 
-        # Actualizar posición
         self.x += self.velocity_x * dt
         self.y += self.velocity_y * dt
 
-        # Actualizar animación basada en el estado del jugador
-        is_moving = abs(self.velocity_x) > 1
-        self.style.update_animation(dt, moving=is_moving, jumping=self.is_jumping, attacking=self.is_attacking)
+        # Apply friction
+        self.velocity_x *= self.friction
+        if abs(self.velocity_x) < 1:
+            self.velocity_x = 0
 
-        # Mantener al jugador dentro de los límites verticales
+    def handle_collisions(self, platforms):
+        """Handle collisions with platforms."""
+        if platforms:
+            self.check_platform_collision(platforms)
+
+    def constrain_to_screen(self):
+        """Ensure the player stays within screen bounds."""
         if self.y > self.screen_height - self.style.height:
             self.y = self.screen_height - self.style.height
             self.velocity_y = 0
@@ -131,16 +146,13 @@ class Player:
             self.y = 0
             self.velocity_y = 0
 
-        # Platform collisions
-        if platforms:
-            self.check_platform_collision(platforms)
+    def update_animation(self, dt):
+        """Update player animation based on state."""
+        is_moving = abs(self.velocity_x) > 1
+        self.style.update_animation(dt, moving=is_moving, jumping=self.is_jumping, attacking=self.is_attacking)
 
-        # Friction
-        self.velocity_x *= self.friction
-        if abs(self.velocity_x) < 1:
-            self.velocity_x = 0
-
-        # Reset attack state
+    def reset_attack_state(self):
+        """Reset the attack state after each update."""
         if self.is_attacking:
             self.is_attacking = False
 

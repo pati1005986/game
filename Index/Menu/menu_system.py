@@ -39,39 +39,54 @@ class Button:
 class Menu:
     def __init__(self, screen):
         self.screen = screen
-        button_width = 200
-        button_height = 50
-        button_spacing = 20
-        start_y = screen.get_height() // 2 - button_height
-        
+        self.update_dimensions()
+
         # Crear botones centrados
         self.buttons = {
-            'play': Button(screen.get_width()//2 - button_width//2,
-                         start_y,
-                         button_width, button_height, "JUGAR"),
-            'settings': Button(screen.get_width()//2 - button_width//2,
-                            start_y + button_height + button_spacing,
-                            button_width, button_height, "AJUSTES")
+            'play': Button(self.screen_width // 2 - self.button_width // 2,
+                           self.start_y,
+                           self.button_width, self.button_height, "JUGAR"),
+            'settings': Button(self.screen_width // 2 - self.button_width // 2,
+                               self.start_y + self.button_height + self.button_spacing,
+                               self.button_width, self.button_height, "AJUSTES")
         }
-        
+
         # Título del juego
         self.title_font = pygame.font.SysFont(None, 72)
         self.title_text = "MI JUEGO"
-        
+
+    def update_dimensions(self):
+        """Update dimensions for responsive design."""
+        self.screen_width = self.screen.get_width()
+        self.screen_height = self.screen.get_height()
+        self.button_width = min(200, self.screen_width * 0.4)
+        self.button_height = min(50, self.screen_height * 0.1)
+        self.button_spacing = min(20, self.screen_height * 0.04)
+        self.start_y = self.screen_height // 2 - self.button_height
+
     def draw(self, background_func):
         # Dibujar fondo
         background_func(self.screen)
-        
+
         # Dibujar título
         title_surface = self.title_font.render(self.title_text, True, WHITE)
-        title_rect = title_surface.get_rect(center=(self.screen.get_width()//2, self.screen.get_height()//4))
+        title_rect = title_surface.get_rect(center=(self.screen_width // 2, self.screen_height // 4))
         self.screen.blit(title_surface, title_rect)
-        
+
         # Dibujar botones
         for button in self.buttons.values():
             button.draw(self.screen)
-            
+
     def handle_event(self, event):
+        if event.type == pygame.VIDEORESIZE:
+            pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+            self.update_dimensions()
+            for name, button in self.buttons.items():
+                button.rect.width = self.button_width
+                button.rect.height = self.button_height
+                button.rect.x = self.screen_width // 2 - self.button_width // 2
+                button.rect.y = self.start_y if name == 'play' else self.start_y + self.button_height + self.button_spacing
+
         for name, button in self.buttons.items():
             if button.handle_event(event):
                 return name

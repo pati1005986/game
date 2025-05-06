@@ -289,7 +289,9 @@ def apply_power_up(power_up, is_player=True):
         elif power_up.type == 'shield':
             player.invulnerable = True
             player.invulnerable_timer = power_up.effect_duration
-    # Eliminar lógica para aplicar poderes al enemigo
+    else:
+        # Aplicar al enemigo
+        enemy.apply_power_up(power_up.type, power_up.effect_duration)
 
 def remove_power_up_effect(effect_type, is_player=True):
     """Remover efecto del power-up del jugador o enemigo"""

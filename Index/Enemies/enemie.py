@@ -244,6 +244,27 @@ class Enemy:
             self.is_jumping = True
             self.on_ground = False
 
+    def apply_power_up(self, power_up_type, effect_duration):
+        """Apply a power-up effect to the enemy."""
+        if power_up_type == 'speed':
+            self.max_velocity *= 1.5
+            self.acceleration *= 1.5
+        elif power_up_type == 'jump':
+            self.jump_power *= 1.3
+        elif power_up_type == 'shield':
+            self.invulnerable = True
+            self.invulnerable_timer = effect_duration
+
+    def remove_power_up_effect(self, effect_type):
+        """Remove a power-up effect from the enemy."""
+        if effect_type == 'speed':
+            self.max_velocity /= 1.5
+            self.acceleration /= 1.5
+        elif effect_type == 'jump':
+            self.jump_power /= 1.3
+        elif effect_type == 'shield':
+            self.invulnerable = False
+
     def update_power_ups(self, dt):
         """Actualiza los efectos de power-ups activos"""
         for effect_type in self.active_effects:
@@ -254,66 +275,42 @@ class Enemy:
                     self.remove_power_up_effect(effect_type)
 
     def update(self, player, platforms, dt, power_ups=None):
-        """Enhanced update with movement range limited to screen resolution."""
-        # Actualizar power-ups activos (sin buscar nuevos power-ups)
+        """Enhanced update with modularized state handling and optimized movement."""
         self.update_power_ups(dt)
 
-        # Update timers
+        # Update invulnerability timer
         if self.invulnerable:
             self.invulnerable_timer -= dt
             if self.invulnerable_timer <= 0:
                 self.invulnerable = False
 
-        # Calculate distance to player
+        # Determine state based on distance to player
         distance_to_player = abs(player.x - self.x)
+        self.state = (
+            'attack' if distance_to_player <= self.attack_range else
+            'chase' if distance_to_player <= self.aggro_range else
+            'patrol'
+        )
 
-        # State machine without power-up seeking
-        if distance_to_player <= self.attack_range:
-            self.state = 'attack'
-        elif distance_to_player <= self.aggro_range:
-            self.state = 'chase'
-        else:
-            self.state = 'patrol'
+        # Execute state behavior
+        state_actions = {
+            'patrol': self.patrol,
+            'chase': lambda dt: self.chase_player(player, dt),
+            'attack': lambda dt: self.attack(player)
+        }
+        state_actions[self.state](dt)
 
-        # Execute current state
-        if self.state == 'patrol':
-            self.patrol(dt)
-        elif self.state == 'chase':
-            self.chase_player(player, dt)
-        elif self.state == 'attack':
-            self.attack(player)
-
-        # Apply gravity
+        # Apply gravity and update position
         if not self.on_ground:
             self.velocity_y += self.gravity * dt
-
-        # Update position
-        prev_x = self.x
-        prev_y = self.y
         self.x += self.velocity_x * dt
         self.y += self.velocity_y * dt
 
-        # Limitar el rango de movimiento horizontal a la resolución de la pantalla
-        screen_width = 800  # Ancho de la pantalla
-        if self.x < 0:
-            self.x = 0
-            self.velocity_x = 0
-        elif self.x + self.width > screen_width:
-            self.x = screen_width - self.width
-            self.velocity_x = 0
+        # Constrain movement to screen bounds
+        self.constrain_to_screen()
 
-        # Check collisions with platforms and resolve them
+        # Check collisions with platforms
         self.check_platform_collision(platforms)
-
-        # Mantener al enemigo dentro de los límites de la pantalla verticalmente
-        screen_height = 450
-        if self.y > screen_height - self.height:
-            self.y = screen_height - self.height
-            self.velocity_y = 0
-            self.on_ground = True
-        elif self.y < 0:
-            self.y = 0
-            self.velocity_y = 0
 
         # Apply friction
         self.velocity_x *= self.friction
@@ -321,10 +318,25 @@ class Enemy:
             self.velocity_x = 0
 
         # Update animation
-        moving = abs(self.velocity_x) > 0.1
-        self.style.update_animation(dt, moving=moving, 
-                                  jumping=self.is_jumping, 
-                                  attacking=self.is_attacking)
+        self.style.update_animation(
+            dt,
+            moving=abs(self.velocity_x) > 0.1,
+            jumping=self.is_jumping,
+            attacking=self.is_attacking
+        )
+
+    def constrain_to_screen(self):
+        """Ensure the enemy stays within screen bounds."""
+        screen_width, screen_height = 800, 450
+        if self.x < 0:
+            self.x, self.velocity_x = 0, 0
+        elif self.x + self.width > screen_width:
+            self.x, self.velocity_x = screen_width - self.width, 0
+
+        if self.y > screen_height - self.height:
+            self.y, self.velocity_y, self.on_ground = screen_height - self.height, 0, True
+        elif self.y < 0:
+            self.y, self.velocity_y = 0, 0
 
     def take_damage(self, amount, knockback_x=0, knockback_y=0):
         """Enhanced damage handling with increased damage on health loss."""
