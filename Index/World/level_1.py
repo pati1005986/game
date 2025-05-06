@@ -223,19 +223,19 @@ active_effects = {
 }
 
 def spawn_power_up():
-    """Generar un power-up aleatorio en una plataforma"""
-    if len(platforms) < 2:
+    """Generar un power-up aleatorio sobre la plataforma base"""
+    if not platforms:
         return
         
-    # Elegir plataforma aleatoria (excluyendo la base)
-    platform = random.choice(platforms[1:])
+    # Usar la plataforma base
+    platform = platforms[0]
     
     # Elegir tipo aleatorio
     power_type = random.choice(['speed', 'jump', 'shield'])
     
-    # Posición en la plataforma
-    x = platform.rect.x + random.randint(0, platform.rect.width - 20)
-    y = platform.rect.y - 30
+    # Posición aleatoria sobre la plataforma base
+    x = platform.rect.x + random.randint(50, platform.rect.width - 70)  # Margen de 50px a la izquierda y 70px a la derecha
+    y = platform.rect.y - random.randint(100, 300)  # Entre 100 y 300 pixels sobre la plataforma
     
     power_ups.append(PowerUp(x, y, power_type))
 
@@ -289,9 +289,7 @@ def apply_power_up(power_up, is_player=True):
         elif power_up.type == 'shield':
             player.invulnerable = True
             player.invulnerable_timer = power_up.effect_duration
-    else:
-        # Aplicar al enemigo
-        enemy.apply_power_up(power_up.type, power_up.effect_duration)
+    # Eliminar lógica para aplicar poderes al enemigo
 
 def remove_power_up_effect(effect_type, is_player=True):
     """Remover efecto del power-up del jugador o enemigo"""
@@ -372,45 +370,51 @@ def update_entities(player, enemy, platforms, dt):
     all_entities = [player, enemy] + platforms
     collision_helper.update_spatial_grid(all_entities)
     
+    # Guardar posiciones anteriores para resolución de colisiones
+    prev_player_y = player.y
+    prev_enemy_y = enemy.y
+    
     # Actualizar entidades
     player.update(dt)
-    enemy.update(player, [], dt)  # Pasamos lista vacía porque manejaremos colisiones aquí
+    enemy.update(player, [], dt)
     
     # Manejar colisiones del jugador
-    potential_collisions = collision_helper.get_potential_collisions(player)
-    for other in potential_collisions:
-        if other in platforms:
-            # Colisión con plataforma
-            normal, depth = collision_helper.get_collision_normal(player, other)
-            if normal[1] < 0:  # Colisión desde arriba
-                player.y = other.rect.top
-                player.velocity_y = 0
-                player.is_jumping = False
-                player.on_ground = True
-            elif normal[1] > 0:  # Colisión desde abajo
-                player.y = other.rect.bottom
-                player.velocity_y = 0
-        elif other == enemy:
-            # Colisión con enemigo
-            if collision_helper.check_pixel_perfect_collision(player, enemy):
-                enemy.check_player_collision(player)
+    for platform in platforms:
+        player_rect = pygame.Rect(player.x, player.y, player.style.width, player.style.height)
+        if player_rect.colliderect(platform.rect):
+            # Resolver colisión vertical
+            if player.velocity_y >= 0:  # Cayendo
+                if prev_player_y + player.style.height <= platform.rect.top:
+                    player.y = platform.rect.top - player.style.height
+                    player.velocity_y = 0
+                    player.is_jumping = False
+                    player.on_ground = True
+            elif player.velocity_y < 0:  # Subiendo
+                if prev_player_y >= platform.rect.bottom:
+                    player.y = platform.rect.bottom
+                    player.velocity_y = 0
     
     # Manejar colisiones del enemigo
-    potential_collisions = collision_helper.get_potential_collisions(enemy)
-    for other in potential_collisions:
-        if other in platforms:
-            # Colisión con plataforma
-            normal, depth = collision_helper.get_collision_normal(enemy, other)
-            if normal[1] < 0:  # Colisión desde arriba
-                enemy.y = other.rect.top
-                enemy.velocity_y = 0
-                enemy.is_jumping = False
-                enemy.on_ground = True
-            elif normal[1] > 0:  # Colisión desde abajo
-                enemy.y = other.rect.bottom
-                enemy.velocity_y = 0
+    for platform in platforms:
+        enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.style.width, enemy.style.height)
+        if enemy_rect.colliderect(platform.rect):
+            # Resolver colisión vertical
+            if enemy.velocity_y >= 0:  # Cayendo
+                if prev_enemy_y + enemy.style.height <= platform.rect.top:
+                    enemy.y = platform.rect.top - enemy.style.height
+                    enemy.velocity_y = 0
+                    enemy.is_jumping = False
+                    enemy.on_ground = True
+            elif enemy.velocity_y < 0:  # Subiendo
+                if prev_enemy_y >= platform.rect.bottom:
+                    enemy.y = platform.rect.bottom
+                    enemy.velocity_y = 0
     
-    # Limpiar caché después de actualizar
+# Verificar colisión entre jugador y enemigo
+    if collision_helper.check_pixel_perfect_collision(player, enemy):
+        enemy.check_player_collision(player)
+    
+    # Limpiar caché
     collision_helper.clear_cache()
     
     # Check for falls

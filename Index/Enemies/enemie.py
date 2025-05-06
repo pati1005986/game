@@ -80,9 +80,9 @@ class Enemy:
             'shield': 1.0
         }
         
-        # Inicializar referencia al power-up más cercano
-        self.nearest_power_up = None
-        
+        # Inicializar referencia al daño base
+        self.base_damage = self.damage  # Guardar el daño base para reiniciarlo al morir
+
     def set_difficulty(self, difficulty):
         """Actualizar parámetros según el nivel de dificultad"""
         settings = self.DIFFICULTY_SETTINGS[difficulty]
@@ -231,17 +231,11 @@ class Enemy:
         elif (abs(distance_x) < self.attack_range * 2 and 
               random.random() < 0.2 * aggression):  # Aumentada probabilidad de salto
             should_jump = True
-            
-        # 5. Saltar si hay un ítem arriba
-        elif self.nearest_power_up and self.nearest_power_up.y < self.y - 50:
-            should_jump = True
         
         # Ejecutar salto con potencia mejorada
         if should_jump and self.on_ground:
             jump_multiplier = 1.0
-            if self.nearest_power_up and self.nearest_power_up.y < self.y:
-                jump_multiplier = 1.4  # Salto más alto para alcanzar ítems
-            elif distance_y < -100:
+            if distance_y < -100:
                 jump_multiplier = 1.3
             elif player.is_jumping:
                 jump_multiplier = 1.2
@@ -249,62 +243,6 @@ class Enemy:
             self.velocity_y = -self.jump_power * jump_multiplier
             self.is_jumping = True
             self.on_ground = False
-
-    def find_nearest_power_up(self, power_ups):
-        """Encuentra el power-up más cercano"""
-        self.nearest_power_up = None
-        min_distance = float('inf')
-        
-        for power_up in power_ups:
-            if power_up.active and not power_up.collected:
-                dx = power_up.x - self.x
-                dy = power_up.y - self.y
-                distance = (dx * dx + dy * dy) ** 0.5
-                
-                # Considerar power-ups basado en la salud actual
-                if self.health < self.max_health * 0.5 and power_up.type == 'shield':
-                    distance *= 0.5  # Priorizar escudos cuando tiene poca vida
-                
-                if distance < min_distance:
-                    min_distance = distance
-                    self.nearest_power_up = power_up
-        
-        return self.nearest_power_up
-
-    def move_towards_power_up(self, dt):
-        """Se mueve hacia el power-up más cercano"""
-        if not self.nearest_power_up:
-            return
-            
-        direction = 1 if self.nearest_power_up.x > self.x else -1
-        target_velocity = self.max_velocity * direction * 1.2  # 20% más rápido hacia los ítems
-        
-        # Aplicar aceleración aumentada hacia el ítem
-        self.velocity_x += self.acceleration * direction * dt * 1.5
-        self.velocity_x = max(min(self.velocity_x, target_velocity), -target_velocity)
-
-    def apply_power_up(self, power_up_type, duration):
-        """Aplica el efecto de un power-up al enemigo"""
-        self.active_effects[power_up_type] = duration
-        
-        if power_up_type == 'speed':
-            self.max_velocity *= self.power_up_multipliers['speed']
-            self.acceleration *= self.power_up_multipliers['speed']
-        elif power_up_type == 'jump':
-            self.jump_power *= self.power_up_multipliers['jump']
-        elif power_up_type == 'shield':
-            self.invulnerable = True
-            self.invulnerable_timer = duration
-
-    def remove_power_up_effect(self, power_up_type):
-        """Remueve el efecto de un power-up"""
-        if power_up_type == 'speed':
-            self.max_velocity /= self.power_up_multipliers['speed']
-            self.acceleration /= self.power_up_multipliers['speed']
-        elif power_up_type == 'jump':
-            self.jump_power /= self.power_up_multipliers['jump']
-        elif power_up_type == 'shield':
-            self.invulnerable = False
 
     def update_power_ups(self, dt):
         """Actualiza los efectos de power-ups activos"""
@@ -316,38 +254,27 @@ class Enemy:
                     self.remove_power_up_effect(effect_type)
 
     def update(self, player, platforms, dt, power_ups=None):
-        """Enhanced update with power-up seeking behavior"""
-        # Actualizar power-ups activos
+        """Enhanced update with movement range limited to screen resolution."""
+        # Actualizar power-ups activos (sin buscar nuevos power-ups)
         self.update_power_ups(dt)
-        
+
         # Update timers
         if self.invulnerable:
             self.invulnerable_timer -= dt
             if self.invulnerable_timer <= 0:
                 self.invulnerable = False
 
-        # Buscar power-ups cercanos si están disponibles
-        if power_ups:
-            self.find_nearest_power_up(power_ups)
-        
-        # Calculate distance to player and nearest power-up
+        # Calculate distance to player
         distance_to_player = abs(player.x - self.x)
-        distance_to_power_up = float('inf')
-        if self.nearest_power_up:
-            dx = self.nearest_power_up.x - self.x
-            dy = self.nearest_power_up.y - self.y
-            distance_to_power_up = (dx * dx + dy * dy) ** 0.5
-        
-        # State machine with power-up seeking
-        if self.nearest_power_up and distance_to_power_up < 150:  # Priorizar power-ups cercanos
-            self.move_towards_power_up(dt)
-        elif distance_to_player <= self.attack_range:
+
+        # State machine without power-up seeking
+        if distance_to_player <= self.attack_range:
             self.state = 'attack'
         elif distance_to_player <= self.aggro_range:
             self.state = 'chase'
         else:
             self.state = 'patrol'
-            
+
         # Execute current state
         if self.state == 'patrol':
             self.patrol(dt)
@@ -355,51 +282,30 @@ class Enemy:
             self.chase_player(player, dt)
         elif self.state == 'attack':
             self.attack(player)
-            
+
         # Apply gravity
         if not self.on_ground:
             self.velocity_y += self.gravity * dt
-            
+
         # Update position
         prev_x = self.x
         prev_y = self.y
         self.x += self.velocity_x * dt
         self.y += self.velocity_y * dt
-        
+
+        # Limitar el rango de movimiento horizontal a la resolución de la pantalla
+        screen_width = 800  # Ancho de la pantalla
+        if self.x < 0:
+            self.x = 0
+            self.velocity_x = 0
+        elif self.x + self.width > screen_width:
+            self.x = screen_width - self.width
+            self.velocity_x = 0
+
         # Check collisions with platforms and resolve them
-        collision_found = False
-        for platform in platforms:
-            if pygame.Rect(self.x, self.y, self.width, self.height).colliderect(platform.rect):
-                # Restaurar posición anterior y resolver colisión
-                self.x = prev_x
-                self.y = prev_y
-                
-                # Verificar colisión vertical
-                if self.velocity_y >= 0:  # Cayendo
-                    if self.y <= platform.rect.top:
-                        self.y = platform.rect.top
-                        self.velocity_y = 0
-                        self.is_jumping = False
-                        self.on_ground = True
-                        collision_found = True
-                elif self.velocity_y < 0:  # Subiendo
-                    if self.y + self.height >= platform.rect.bottom:
-                        self.y = platform.rect.bottom
-                        self.velocity_y = 0
-                
-                # Verificar colisión horizontal
-                if not collision_found:  # Solo si no hubo colisión vertical
-                    if self.velocity_x > 0:  # Moviendo a la derecha
-                        self.x = platform.rect.left - self.width
-                        self.velocity_x = 0
-                    elif self.velocity_x < 0:  # Moviendo a la izquierda
-                        self.x = platform.rect.right
-                        self.velocity_x = 0
-        
-        if not collision_found:
-            self.on_ground = False
-        
-        # Mantener al enemigo dentro de los límites de la pantalla
+        self.check_platform_collision(platforms)
+
+        # Mantener al enemigo dentro de los límites de la pantalla verticalmente
         screen_height = 450
         if self.y > screen_height - self.height:
             self.y = screen_height - self.height
@@ -408,12 +314,12 @@ class Enemy:
         elif self.y < 0:
             self.y = 0
             self.velocity_y = 0
-        
+
         # Apply friction
         self.velocity_x *= self.friction
         if abs(self.velocity_x) < 1:
             self.velocity_x = 0
-            
+
         # Update animation
         moving = abs(self.velocity_x) > 0.1
         self.style.update_animation(dt, moving=moving, 
@@ -421,18 +327,30 @@ class Enemy:
                                   attacking=self.is_attacking)
 
     def take_damage(self, amount, knockback_x=0, knockback_y=0):
-        """Enhanced damage handling with correct knockback direction"""
+        """Enhanced damage handling with increased damage on health loss."""
         if not self.invulnerable:
             self.health -= amount
             if self.health < 0:
                 self.health = 0
-            
+
+            # Incrementar daño basado en la salud restante
+            health_percentage = self.health / self.max_health
+            self.damage = self.base_damage + int((1 - health_percentage) * self.base_damage)
+
             # Apply knockback with resistance and correct direction
             self.velocity_x = max(min(knockback_x * (1 - self.knockback_resistance), 300), -300)
             self.velocity_y = -200  # Knockback hacia arriba (negativo en coordenadas de pantalla)
-            
+
             self.invulnerable = True
             self.invulnerable_timer = self.invulnerable_duration
+
+    def reset_on_death(self):
+        """Reset enemy stats when it dies."""
+        self.health = self.max_health
+        self.damage = self.base_damage  # Reiniciar el daño al valor base
+        self.invulnerable = False
+        self.velocity_x = 0
+        self.velocity_y = 0
 
     def draw(self, screen):
         """Dibujar al enemigo en la pantalla con coordenadas correctas"""

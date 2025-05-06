@@ -140,31 +140,10 @@ class Platform:
 def generate_platforms(level, screen_width, screen_height):
     platforms = []
     platform_height = 32  # Altura ajustada para bloques de 16px
-    min_platform_width = 100  # Múltiplo de 16 para alineación de bloques
-    max_platform_width = 256
     
-    # Plataforma base más ancha - ahora justo en la parte inferior
-    base_platform = Platform(0, screen_height - platform_height,
+    # Colocar la plataforma base más arriba (ajustada para colisiones)
+    base_platform = Platform(0, screen_height - platform_height - 10,  # 10 píxeles más arriba
                            screen_width, platform_height)
     platforms.append(base_platform)
-    
-    # Plataformas adicionales según el nivel
-    num_platforms = 2 + level
-    for _ in range(num_platforms):
-        # Ajustar ancho para que sea múltiplo de 16
-        width = random.randint(min_platform_width // 16, max_platform_width // 16) * 16
-        x = random.randint(0, (screen_width - width) // 16) * 16  # Alinear a la cuadrícula
-        y = random.randint((screen_height//2) // 16, (screen_height - 150) // 16) * 16
-        
-        # Evitar superposición
-        valid_position = True
-        for p in platforms:
-            if abs(y - p.rect.y) < platform_height * 2:
-                if x < p.rect.right and x + width > p.rect.left:
-                    valid_position = False
-                    break
-        
-        if valid_position:
-            platforms.append(Platform(x, y, width, platform_height))
     
     return platforms
