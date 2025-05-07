@@ -357,13 +357,31 @@ def check_entity_fall(entity, screen_height):
     return entity.y < -screen_height
 
 def reset_level(current_level, screen_width, screen_height):
-    """Reset level and return new platforms and positions"""
-    platforms = generate_platforms(current_level, screen_width, screen_height)
-    player_x = 100
-    player_y = platforms[0].rect.top - 100  # Aparecer 100 pixels más arriba de la plataforma
-    enemy_x = screen_width - 100  # Position enemy on the right side
-    enemy_y = platforms[0].get_spawn_position()[1] - 300  # 300 pixels más arriba (valor negativo)
-    return platforms, (player_x, player_y), (enemy_x, enemy_y)
+    """Optimized level reset to reuse existing objects where possible."""
+    global platforms, player, enemy
+
+    # Reuse existing platforms if possible
+    if platforms:
+        for platform in platforms:
+            platform.reset_position(current_level, screen_width, screen_height)
+    else:
+        platforms = generate_platforms(current_level, screen_width, screen_height)
+
+    # Reset player position and attributes
+    player.x = 100
+    player.y = platforms[0].rect.top - 100  # Appear 100 pixels above the platform
+    player.velocity_x = 0
+    player.velocity_y = 0
+    player.health = 100
+    player.on_ground = False
+
+    # Reset enemy position and attributes
+    enemy.x = screen_width - 200
+    enemy.y = platforms[0].rect.top - 300  # Appear 300 pixels above the platform
+    enemy.velocity_x = 0
+    enemy.velocity_y = 0
+    enemy.health = enemy.max_health
+    enemy.on_ground = False
 
 def update_entities(player, enemy, platforms, dt):
     """Update all entities with optimized collision detection"""
