@@ -428,14 +428,14 @@ def update_entities(player, enemy, platforms, dt):
     return False, False  # Continue current level
 
 def check_platform_collisions(entity, platforms, screen):
-    """Unified platform collision checking"""
+    """Unified platform collision checking with adjusted collision height."""
     entity_rect = pygame.Rect(
         entity.x,
-        screen.get_height() - entity.y - entity.style.height,  # Convert to screen coordinates
+        screen.get_height() - entity.y - entity.style.height - 10,  # Adjusted collision height
         entity.style.width,
         entity.style.height
     )
-    
+
     for platform in platforms:
         if entity_rect.colliderect(platform.rect):
             # Get collision depth

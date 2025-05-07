@@ -170,6 +170,34 @@ class Player:
             knockback_x = 200 if self.facing_right else -200
             self.velocity_x = knockback_x
 
+    def evade_obstacles(self, obstacles, dt):
+        """Evade obstacles dynamically during movement."""
+        for obstacle in obstacles:
+            player_rect = pygame.Rect(self.x, self.y, self.style.width, self.style.height)
+            obstacle_rect = pygame.Rect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
+
+            if player_rect.colliderect(obstacle_rect):
+                # Move away from the obstacle
+                if self.x < obstacle.x:
+                    self.velocity_x -= self.acceleration * dt
+                else:
+                    self.velocity_x += self.acceleration * dt
+
+                # Adjust vertical position if necessary
+                if self.y > obstacle.y:
+                    self.velocity_y = -self.jump_power * 0.5
+
+    def enhanced_dash(self, dt):
+        """Improved dash with cooldown and directional control."""
+        if self.dash_available:
+            direction = 1 if self.facing_right else -1
+            self.velocity_x = self.dash_power * direction
+            self.velocity_y = -self.jump_power * 0.3  # Add slight upward motion
+            self.dash_available = False
+            self.dash_timer = self.dash_cooldown
+            self.invulnerable = True
+            self.invulnerable_timer = 0.3
+
     def draw(self, screen):
         """Draw the player on screen with correct coordinates"""
         self.style.draw(screen, self.x, self.y)

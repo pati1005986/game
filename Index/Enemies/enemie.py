@@ -99,19 +99,30 @@ class Enemy:
         self.health = self.max_health
 
     def move_towards_player(self, player, dt):
-        """Move towards player with smooth acceleration"""
-        # Calcular dirección al jugador
+        """Enhanced movement towards the player with obstacle avoidance."""
         direction = 1 if player.x > self.x else -1
         target_velocity = self.max_velocity * direction
-        
-        # Aplicar aceleración
+
+        # Apply acceleration smoothly
         if abs(self.velocity_x - target_velocity) > self.acceleration * dt:
             self.velocity_x += self.acceleration * direction * dt
         else:
             self.velocity_x = target_velocity
-        
-        # Limitar velocidad
+
+        # Limit velocity
         self.velocity_x = max(min(self.velocity_x, self.max_velocity), -self.max_velocity)
+
+        # Check for obstacles and adjust movement
+        if not self.on_ground and abs(player.y - self.y) > 50:
+            self.jump()
+
+    def evade_player(self, player, dt):
+        """Evade the player when too close."""
+        distance_to_player = abs(player.x - self.x)
+        if distance_to_player < self.attack_range * 1.5:
+            direction = -1 if player.x > self.x else 1
+            self.velocity_x += self.acceleration * direction * dt
+            self.velocity_x = max(min(self.velocity_x, self.max_velocity), -self.max_velocity)
 
     def jump(self):
         """Make enemy jump if on ground using screen coordinates"""
